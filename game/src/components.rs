@@ -1,0 +1,228 @@
+use bevy::prelude::*;
+use bevy::render::view::RenderLayers;
+use bevy::render::render_resource::*;
+use bevy::render::render_resource::Extent3d;
+use bevy::render::camera::RenderTarget;
+use bevy::core_pipeline::clear_color::ClearColorConfig;
+use bevy::sprite::Mesh2dHandle;
+
+#[derive(Clone)]
+pub struct WaterEffectImages {
+    pub rendered_water_sprites: Handle<Image>,
+    pub rendered_ripples: Handle<Image>,
+}
+
+impl WaterEffectImages {
+    const RENDER_LAYER: u8 = 1;
+
+    pub fn render_layers() -> RenderLayers {
+        RenderLayers::layer(Self::RENDER_LAYER)
+    }
+
+    fn image_size(window: &Window) -> Extent3d {
+        let extra_margin = Vec2::ZERO;
+        let adjusted_size = Vec2::new(
+            window.width() + extra_margin.x,
+            window.height() + extra_margin.y,
+        );
+        Extent3d {
+            width: adjusted_size.as_uvec2().x,
+            height: adjusted_size.as_uvec2().y,
+            depth_or_array_layers: 1,
+        }
+    }
+
+    fn rendered_water_sprites_image(window: &Window) -> Image {
+        let size = Self::image_size(window);
+        let mut image = Image {
+            texture_descriptor: TextureDescriptor {
+                label: None,
+                size,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Bgra8UnormSrgb,
+                mip_level_count: 1,
+                sample_count: 1,
+                usage: TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::COPY_DST
+                    | TextureUsages::RENDER_ATTACHMENT,
+            },
+            ..Default::default()
+        };
+        // NOTE: fill image.data with zeroes
+        image.resize(size);
+
+        image
+    }
+
+    fn rendered_ripples_image(window: &Window) -> Image {
+        let size = Self::image_size(window);
+        let mut image = Image {
+            texture_descriptor: TextureDescriptor {
+                label: None,
+                size,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Bgra8UnormSrgb,
+                mip_level_count: 1,
+                sample_count: 1,
+                usage: TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::COPY_DST
+                    | TextureUsages::RENDER_ATTACHMENT,
+            },
+            ..Default::default()
+        };
+        // NOTE: fill image.data with zeroes
+        image.resize(size);
+
+        image
+    }
+}
+
+impl FromWorld for WaterEffectImages {
+    fn from_world(world: &mut World) -> Self {
+        let (water_sprites_image, ripples_image) = {
+        // let image = {
+            let window = world
+                .resource::<Windows>()
+                .get_primary()
+                .expect("cannot get primary Window in Windows");
+            let rendered_water_sprites_image = Self::rendered_water_sprites_image(window);
+            let rendered_ripples_image = Self::rendered_ripples_image(window);
+            (rendered_water_sprites_image, rendered_ripples_image)
+            // image
+        };
+
+        let mut images = world.resource_mut::<Assets<Image>>();
+
+        Self {
+            rendered_water_sprites: images.add(water_sprites_image),
+            rendered_ripples: images.add(ripples_image),
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct MainCameraBundle {
+    main_camera: MainCamera,
+    visibility: Visibility,
+    computed_visibility: ComputedVisibility,
+    #[bundle]
+    bundle: Camera2dBundle,
+}
+
+impl MainCameraBundle {
+    pub fn z(&self) -> f32 {
+        self.bundle.transform.translation.z
+    }
+}
+
+impl Default for MainCameraBundle {
+    fn default() -> Self {
+        Self {
+            main_camera: MainCamera,
+            visibility: Visibility::default(),
+            computed_visibility: ComputedVisibility::default(),
+            bundle: Camera2dBundle::default(),
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct MainCamera;
+
+
+#[derive(Bundle)]
+pub struct WaterCameraBundle {
+    water_camera: WaterCamera,
+    render_layers: RenderLayers,
+    visibility: Visibility,
+    computed_visibility: ComputedVisibility,
+    #[bundle]
+    camera_bundle: Camera2dBundle,
+}
+
+impl WaterCameraBundle {
+    #[allow(clippy::field_reassign_with_default)]
+    pub fn new(water_effect_images: &WaterEffectImages) -> Self {
+        let image_handle = water_effect_images.rendered_water_sprites.clone();
+        let mut color = Color::PINK;
+        color.set_a(0.);
+
+        let mut camera_bundle = Camera2dBundle::default();
+        camera_bundle.camera_2d = Camera2d {
+            clear_color: ClearColorConfig::Custom(color),
+        };
+        camera_bundle.camera = Camera {
+            // render before the "main pass" camera
+            priority: -1,
+            target: RenderTarget::Image(image_handle),
+            ..Default::default()
+        };
+        camera_bundle.transform = Transform::from_translation(Vec3::ZERO);
+        Self {
+            water_camera: WaterCamera,
+            render_layers: WaterEffectImages::render_layers(),
+            visibility: Visibility::default(),
+            computed_visibility: ComputedVisibility::default(),
+            camera_bundle,
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct WaterCamera;
+
+#[derive(Bundle)]
+pub struct WaterEffectBundle {
+    water_effect: WaterEffect,
+    handle: Mesh2dHandle,
+    texture: Handle<Image>,
+    #[bundle]
+    spatial_bundle: SpatialBundle,
+    // #[bundle]
+    // sprite_bundle: SpriteBundle,
+}
+
+impl WaterEffectBundle {
+    pub fn new(meshes: &mut Assets<Mesh>, images: &Assets<Image>, water_effect_images: &WaterEffectImages, camera_z: f32) -> Self {
+        let image = images.get(&water_effect_images.rendered_water_sprites).unwrap();
+        let mesh_size = UVec2::new(
+            image.texture_descriptor.size.width,
+            image.texture_descriptor.size.height,
+        );
+        let quad = shape::Quad::new(mesh_size.as_vec2());
+
+        let translation = Vec3::new(0., 0., -camera_z + 0.01); // NOTE 0.01 only for debugging
+        Self {
+            water_effect: WaterEffect,
+            handle: meshes.add(Mesh::from(quad)).into(),
+            texture: water_effect_images.rendered_water_sprites.clone(),
+            spatial_bundle: SpatialBundle {
+                transform: Transform::from_translation(translation),
+                ..Default::default()
+            }
+            // sprite_bundle: SpriteBundle {
+            //     sprite: Sprite {
+            //         custom_size: Some(mesh_size.as_vec2()),
+            //         ..Default::default()
+            //      },
+            //     texture: water_effect_images.rendered_water_sprites.clone(),
+            //     transform: Transform::from_translation(translation),
+            //     ..Default::default()
+            // }
+        }
+    }
+}
+
+#[derive(Debug, Component)]
+pub struct WaterEffect;
+
+// impl ExtractComponent for WaterEffect {
+//     type Query = Read<WaterEffect>;
+
+//     type Filter = ();
+
+//     fn extract_component(_: bevy::ecs::query::QueryItem<Self::Query>) -> Self {
+//         WaterEffect
+//     }
+// }
+
