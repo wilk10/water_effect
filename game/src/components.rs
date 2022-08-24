@@ -9,6 +9,8 @@ use bevy::reflect::TypeUuid;
 use bevy::sprite::Material2d;
 use bevy::sprite::MaterialMesh2dBundle;
 
+use crate::ripples_style::RipplesStyle;
+
 #[derive(Clone)]
 pub struct WaterEffectImages {
     pub rendered_water_sprites: Handle<Image>,
@@ -134,8 +136,8 @@ pub struct MainCamera;
 
 
 #[derive(Bundle)]
-pub struct WaterCameraBundle {
-    water_camera: WaterCamera,
+pub struct WaterSpritesCameraBundle {
+    tag: WaterSpritesCamera,
     render_layers: RenderLayers,
     visibility: Visibility,
     computed_visibility: ComputedVisibility,
@@ -143,7 +145,7 @@ pub struct WaterCameraBundle {
     camera_bundle: Camera2dBundle,
 }
 
-impl WaterCameraBundle {
+impl WaterSpritesCameraBundle {
     #[allow(clippy::field_reassign_with_default)]
     pub fn new(water_effect_images: &WaterEffectImages) -> Self {
         let image_handle = water_effect_images.rendered_water_sprites.clone();
@@ -162,7 +164,7 @@ impl WaterCameraBundle {
         };
         camera_bundle.transform = Transform::from_translation(Vec3::ZERO);
         Self {
-            water_camera: WaterCamera,
+            tag: WaterSpritesCamera,
             render_layers: WaterEffectImages::render_layers(),
             visibility: Visibility::default(),
             computed_visibility: ComputedVisibility::default(),
@@ -172,7 +174,7 @@ impl WaterCameraBundle {
 }
 
 #[derive(Component)]
-pub struct WaterCamera;
+pub struct WaterSpritesCamera;
 
 // #[derive(Bundle)]
 // pub struct WaterEffectBundle {
@@ -229,26 +231,28 @@ pub struct WaterCamera;
 //     }
 // }
 
-/// WATER EFFECT BUNDLE
-
 #[derive(Default, Bundle)]
-pub struct WaterEffectBundle {
-    pub water_effect_tag: WaterEffectTag,
+pub struct WaterSpritesToTextureBundle {
+    tag: WaterSpritesToTexture,
+    ripples_style: Handle<RipplesStyle>,
+    // #[bundle]
+    // sprite_bundle: SpriteBundle,
     #[bundle]
-    pub material_2d_bundle: MaterialMesh2dBundle<WaterEffect>,
+    pub material_2d_bundle: MaterialMesh2dBundle<WaterSpritesMaterial>,
 }
 
-impl WaterEffectBundle {
+impl WaterSpritesToTextureBundle {
     const Z: f32 = 1.0;
 
     pub fn new(
         meshes: &mut Assets<Mesh>, 
-        materials: &mut Assets<WaterEffect>, 
+        materials: &mut Assets<WaterSpritesMaterial>, 
         images: &Assets<Image>, 
         water_effect_images: &WaterEffectImages,
         camera_z: f32,
+        ripples_styles: &mut Assets<RipplesStyle>,
     ) -> Self {
-        let water_effect = WaterEffect::new(&water_effect_images.rendered_water_sprites);
+        let water_sprites_material = WaterSpritesMaterial::new(&water_effect_images.rendered_water_sprites);
 
         let image = images.get(&water_effect_images.rendered_water_sprites).unwrap();
         let mesh_size = UVec2::new(
@@ -260,27 +264,42 @@ impl WaterEffectBundle {
         let translation = Vec3::new(0., 0., -camera_z + Self::Z);
 
         Self {
-            water_effect_tag: WaterEffectTag,
+            tag: WaterSpritesToTexture,
+            ripples_style: ripples_styles.add(RipplesStyle::default().into()),
             material_2d_bundle: MaterialMesh2dBundle { 
                 mesh: meshes.add(Mesh::from(quad)).into(), 
-                material: materials.add(water_effect), 
+                material: materials.add(water_sprites_material), 
                 transform: Transform::from_translation(translation), 
                 ..Default::default()
             }
+            // sprite_bundle: SpriteBundle {
+            //     sprite: Sprite {
+            //         custom_size: Some(mesh_size.as_vec2()),
+            //         ..Default::default()
+            //      },
+            //     texture: water_effect_images.rendered_water_sprites.clone(),
+            //     transform: Transform::from_translation(translation),
+            //     ..Default::default()
+            // }
         }
     }
 }
+
+#[derive(Debug, Default, Component)]
+pub struct WaterSpritesToTexture;
+
+
 /// WATER EFFECT
 
 #[derive(Debug, Clone, TypeUuid, AsBindGroup)]
 #[uuid = "d8f3e2a1-ee4e-425c-90c1-125fb82eac1f"]
-pub struct WaterEffect {
+pub struct WaterSpritesMaterial {
     #[texture(0)]
     #[sampler(1)]
     pub image_handle: Handle<Image>,
 }
 
-impl WaterEffect {
+impl WaterSpritesMaterial {
     pub fn new(image_handle: &Handle<Image>) -> Self {
         Self {
             image_handle: image_handle.clone(),
@@ -288,13 +307,9 @@ impl WaterEffect {
     }
 }
 
-impl Material2d for WaterEffect {
+impl Material2d for WaterSpritesMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/water_effect.wgsl".into()
+        "shaders/water_sprites.wgsl".into()
     }
 }
 
-/// WATER EFFECT TAG
-
-#[derive(Debug, Default, Component)]
-pub struct WaterEffectTag;

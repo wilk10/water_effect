@@ -1,53 +1,54 @@
-// #import bevy_sprite::mesh2d_types
-// #import bevy_sprite::mesh2d_view_bindings
+// TODO: this needs to be adapted, of course
 
-// @group(1) @binding(0)
-// var<uniform> mesh: Mesh2d;
+#import outline::fullscreen
+#import outline::dimensions
 
-// #import bevy_sprite::mesh2d_functions
+struct Params {
+    color: vec4<f32>;
+    // Outline weight in pixels.
+    weight: f32;
+};
 
-// struct Vertex {
-//     @location(0) position: vec3<f32>,
-// };
+[[group(1), binding(0)]]
+var jfa_buffer: texture_2d<f32>;
+[[group(1), binding(1)]]
+var mask_buffer: texture_2d<f32>;
+[[group(1), binding(2)]]
+var nearest_sampler: sampler;
 
-// struct VertexOutput {
-//     @builtin(position) clip_position: vec4<f32>,
-//     // @location(0) uv: vec2<f32>,
-// };
+[[group(2), binding(0)]]
+var<uniform> params: Params;
 
-// @vertex
-// fn vertex(vertex: Vertex) -> VertexOutput {
-//     var out: VertexOutput;
-//     // out.clip_position = view.view_proj * mesh.model * vec4<f32>(vertex.position, 1.0);
-//     out.clip_position = mesh2d_position_local_to_clip(mesh.model, vec4<f32>(vertex.position, 1.0));
-//     // out.uv = vertex.uv;
-//     return out;
-// }
+struct FragmentIn {
+    [[location(0)]] texcoord: vec2<f32>;
+};
 
-// struct Time {
-//     time_since_startup: f32,
-// };
+[[stage(fragment)]]
+fn fragment(in: FragmentIn) -> [[location(0)]] vec4<f32> {
+    let fb_jfa_pos = textureSample(jfa_buffer, nearest_sampler, in.texcoord).xy;
+    let fb_to_pix = vec2<f32>(dims.width, dims.height);
 
-// @group(2) @binding(0)
-// var<uniform> time: Time;
+    let mask_value = textureSample(mask_buffer, nearest_sampler, in.texcoord).r;
 
-@group(1) @binding(0)
-var water_effect_texture: texture_2d<f32>;
-@group(1) @binding(1)
-var water_effect_sampler: sampler;
+    // Fragment position in pixel space.
+    let pix_coord = in.texcoord * fb_to_pix;
+    // Closest initial fragment in pixel space.
+    let pix_jfa_pos = fb_jfa_pos * fb_to_pix;
 
-@fragment
-fn fragment(
-    #import bevy_sprite::mesh2d_vertex_output
-) -> @location(0) vec4<f32> {
+    let delta = pix_coord - pix_jfa_pos;
+    let mag = sqrt(dot(delta, delta));
 
-    var input_colour: vec4<f32> = textureSample(water_effect_texture, water_effect_sampler, uv);
-
-    if input_colour.a > 0. {
-        input_colour = vec4<f32>(input_colour.x, input_colour.y, input_colour.z, 1.);
+    // Computed texcoord and stored texcoord are likely to differ even if they
+    // represent the same position due to storage as fp16, so an epsilon is
+    // needed.
+    if (mask_value < 1.0) {
+        if (mask_value > 0.0) {
+            return vec4<f32>(params.color.rgb, 1.0 - mask_value);
+        } else {
+            let fade = clamp(params.weight - mag, 0.0, 1.0);
+            return vec4<f32>(params.color.rgb, fade);
+        }
     } else {
-        input_colour = vec4<f32>(0., 0., 0., 0.);
+        return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
-    var result: vec4<f32> = input_colour;
-    return result;
 }

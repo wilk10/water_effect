@@ -1,11 +1,33 @@
 mod components;
+mod graph;
+mod jfa;
+mod jfa_init;
+mod mask;
 mod plugin;
 mod render;
+mod resources;
+mod ripples_style;
+mod water_effect;
 
 use bevy::prelude::*;
+use bevy::render::render_resource::*;
 
+use crate::ripples_style::RipplesStyle;
 use crate::components::*;
 use crate::plugin::WaterEffectPlugin;
+
+// TODO: still don't understand this
+const JFA_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rg16Snorm;
+// TODO: still don't understand this
+const FULLSCREEN_PRIMITIVE_STATE: PrimitiveState = PrimitiveState {
+    topology: PrimitiveTopology::TriangleList,
+    strip_index_format: None,
+    front_face: FrontFace::Ccw,
+    cull_mode: Some(Face::Back),
+    unclipped_depth: false,
+    polygon_mode: PolygonMode::Fill,
+    conservative: false,
+};
 
 pub struct GamePlugin;
 
@@ -27,7 +49,8 @@ fn setup(
     images: Res<Assets<Image>>,
     water_effect_images: Res<WaterEffectImages>,
     mut meshes: ResMut<Assets<Mesh>>, 
-    mut materials: ResMut<Assets<WaterEffect>>,
+    mut ripples_styles: ResMut<Assets<RipplesStyle>>,
+    mut materials: ResMut<Assets<WaterSpritesMaterial>>,
     // mut ripples_styles: ResMut<Assets<RipplesStyle>>,
 ) {
     commands
@@ -109,18 +132,19 @@ fn setup(
     dbg!(camera_z);
 
     let main_camera_entity = commands.spawn_bundle(main_camera).id();
-    let water_camera_entity = commands.spawn_bundle(WaterCameraBundle::new(&water_effect_images)).id();
+    let water_camera_entity = commands.spawn_bundle(WaterSpritesCameraBundle::new(&water_effect_images)).id();
     // let ripples_camera_entity = commands.spawn_bundle(RipplesCameraBundle::new(
     //     &water_effect_images,
     //     &mut ripples_styles,
     // )).id();
     // let water_effect_entity = commands.spawn_bundle(WaterEffectBundle::new(&mut meshes, &images, &water_effect_images, camera_z)).id();
-    let water_effect_entity = commands.spawn_bundle(WaterEffectBundle::new(
+    let water_effect_entity = commands.spawn_bundle(WaterSpritesToTextureBundle::new(
         &mut meshes,
         &mut materials,
         &images,
         &water_effect_images,
         camera_z,
+        &mut ripples_styles,
     )).id();
 
     dbg!(&main_camera_entity);
