@@ -5,6 +5,9 @@ use bevy::render::render_resource::Extent3d;
 use bevy::render::camera::RenderTarget;
 use bevy::core_pipeline::clear_color::ClearColorConfig;
 use bevy::sprite::Mesh2dHandle;
+use bevy::reflect::TypeUuid;
+use bevy::sprite::Material2d;
+use bevy::sprite::MaterialMesh2dBundle;
 
 #[derive(Clone)]
 pub struct WaterEffectImages {
@@ -171,50 +174,50 @@ impl WaterCameraBundle {
 #[derive(Component)]
 pub struct WaterCamera;
 
-#[derive(Bundle)]
-pub struct WaterEffectBundle {
-    water_effect: WaterEffect,
-    handle: Mesh2dHandle,
-    texture: Handle<Image>,
-    #[bundle]
-    spatial_bundle: SpatialBundle,
-    // #[bundle]
-    // sprite_bundle: SpriteBundle,
-}
+// #[derive(Bundle)]
+// pub struct WaterEffectBundle {
+//     water_effect: WaterEffect,
+//     handle: Mesh2dHandle,
+//     texture: Handle<Image>,
+//     #[bundle]
+//     spatial_bundle: SpatialBundle,
+//     // #[bundle]
+//     // sprite_bundle: SpriteBundle,
+// }
 
-impl WaterEffectBundle {
-    pub fn new(meshes: &mut Assets<Mesh>, images: &Assets<Image>, water_effect_images: &WaterEffectImages, camera_z: f32) -> Self {
-        let image = images.get(&water_effect_images.rendered_water_sprites).unwrap();
-        let mesh_size = UVec2::new(
-            image.texture_descriptor.size.width,
-            image.texture_descriptor.size.height,
-        );
-        let quad = shape::Quad::new(mesh_size.as_vec2());
+// impl WaterEffectBundle {
+//     pub fn new(meshes: &mut Assets<Mesh>, images: &Assets<Image>, water_effect_images: &WaterEffectImages, camera_z: f32) -> Self {
+//         let image = images.get(&water_effect_images.rendered_water_sprites).unwrap();
+//         let mesh_size = UVec2::new(
+//             image.texture_descriptor.size.width,
+//             image.texture_descriptor.size.height,
+//         );
+//         let quad = shape::Quad::new(mesh_size.as_vec2());
 
-        let translation = Vec3::new(0., 0., -camera_z + 0.01); // NOTE 0.01 only for debugging
-        Self {
-            water_effect: WaterEffect,
-            handle: meshes.add(Mesh::from(quad)).into(),
-            texture: water_effect_images.rendered_water_sprites.clone(),
-            spatial_bundle: SpatialBundle {
-                transform: Transform::from_translation(translation),
-                ..Default::default()
-            }
-            // sprite_bundle: SpriteBundle {
-            //     sprite: Sprite {
-            //         custom_size: Some(mesh_size.as_vec2()),
-            //         ..Default::default()
-            //      },
-            //     texture: water_effect_images.rendered_water_sprites.clone(),
-            //     transform: Transform::from_translation(translation),
-            //     ..Default::default()
-            // }
-        }
-    }
-}
+//         let translation = Vec3::new(0., 0., -camera_z + 0.01); // NOTE 0.01 only for debugging
+//         Self {
+//             water_effect: WaterEffect,
+//             handle: meshes.add(Mesh::from(quad)).into(),
+//             texture: water_effect_images.rendered_water_sprites.clone(),
+//             spatial_bundle: SpatialBundle {
+//                 transform: Transform::from_translation(translation),
+//                 ..Default::default()
+//             }
+//             // sprite_bundle: SpriteBundle {
+//             //     sprite: Sprite {
+//             //         custom_size: Some(mesh_size.as_vec2()),
+//             //         ..Default::default()
+//             //      },
+//             //     texture: water_effect_images.rendered_water_sprites.clone(),
+//             //     transform: Transform::from_translation(translation),
+//             //     ..Default::default()
+//             // }
+//         }
+//     }
+// }
 
-#[derive(Debug, Component)]
-pub struct WaterEffect;
+// #[derive(Debug, Component)]
+// pub struct WaterEffect;
 
 // impl ExtractComponent for WaterEffect {
 //     type Query = Read<WaterEffect>;
@@ -226,3 +229,72 @@ pub struct WaterEffect;
 //     }
 // }
 
+/// WATER EFFECT BUNDLE
+
+#[derive(Default, Bundle)]
+pub struct WaterEffectBundle {
+    pub water_effect_tag: WaterEffectTag,
+    #[bundle]
+    pub material_2d_bundle: MaterialMesh2dBundle<WaterEffect>,
+}
+
+impl WaterEffectBundle {
+    const Z: f32 = 1.0;
+
+    pub fn new(
+        meshes: &mut Assets<Mesh>, 
+        materials: &mut Assets<WaterEffect>, 
+        images: &Assets<Image>, 
+        water_effect_images: &WaterEffectImages,
+        camera_z: f32,
+    ) -> Self {
+        let water_effect = WaterEffect::new(&water_effect_images.rendered_water_sprites);
+
+        let image = images.get(&water_effect_images.rendered_water_sprites).unwrap();
+        let mesh_size = UVec2::new(
+            image.texture_descriptor.size.width,
+            image.texture_descriptor.size.height,
+        );
+        let quad = shape::Quad::new(mesh_size.as_vec2());
+
+        let translation = Vec3::new(0., 0., -camera_z + Self::Z);
+
+        Self {
+            water_effect_tag: WaterEffectTag,
+            material_2d_bundle: MaterialMesh2dBundle { 
+                mesh: meshes.add(Mesh::from(quad)).into(), 
+                material: materials.add(water_effect), 
+                transform: Transform::from_translation(translation), 
+                ..Default::default()
+            }
+        }
+    }
+}
+/// WATER EFFECT
+
+#[derive(Debug, Clone, TypeUuid, AsBindGroup)]
+#[uuid = "d8f3e2a1-ee4e-425c-90c1-125fb82eac1f"]
+pub struct WaterEffect {
+    #[texture(0)]
+    #[sampler(1)]
+    pub image_handle: Handle<Image>,
+}
+
+impl WaterEffect {
+    pub fn new(image_handle: &Handle<Image>) -> Self {
+        Self {
+            image_handle: image_handle.clone(),
+        }
+    }
+}
+
+impl Material2d for WaterEffect {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/water_effect.wgsl".into()
+    }
+}
+
+/// WATER EFFECT TAG
+
+#[derive(Debug, Default, Component)]
+pub struct WaterEffectTag;

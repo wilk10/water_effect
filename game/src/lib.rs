@@ -19,8 +19,6 @@ impl Plugin for GamePlugin {
     }
 }
 
-
-
 #[derive(Clone, Debug, Component)]
 struct RotationSpeed(f32);
 
@@ -29,6 +27,7 @@ fn setup(
     images: Res<Assets<Image>>,
     water_effect_images: Res<WaterEffectImages>,
     mut meshes: ResMut<Assets<Mesh>>, 
+    mut materials: ResMut<Assets<WaterEffect>>,
     // mut ripples_styles: ResMut<Assets<RipplesStyle>>,
 ) {
     commands
@@ -115,7 +114,14 @@ fn setup(
     //     &water_effect_images,
     //     &mut ripples_styles,
     // )).id();
-    let water_effect_entity = commands.spawn_bundle(WaterEffectBundle::new(&mut meshes, &images, &water_effect_images, camera_z)).id();
+    // let water_effect_entity = commands.spawn_bundle(WaterEffectBundle::new(&mut meshes, &images, &water_effect_images, camera_z)).id();
+    let water_effect_entity = commands.spawn_bundle(WaterEffectBundle::new(
+        &mut meshes,
+        &mut materials,
+        &images,
+        &water_effect_images,
+        camera_z,
+    )).id();
 
     dbg!(&main_camera_entity);
     dbg!(&water_camera_entity);

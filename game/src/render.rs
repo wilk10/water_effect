@@ -28,7 +28,6 @@ impl FromWorld for WaterEffectPipeline {
     }
 }
 
-
 impl SpecializedMeshPipeline for WaterEffectPipeline {
     type Key = Mesh2dPipelineKey;
 
