@@ -64,6 +64,9 @@ fn fragment(in: FragmentIn) -> @location(0) vec4<f32> {
             min_dist2_pos = fb_sample;
         }
     }
+    
+    // TODO: there is a small chance that this is not exaectly what i need, 
+    // but as long as the whole subgraph works, i can try to adapt stuff here
 
     return vec4<f32>(min_dist2_pos, 0.0, 1.0);
 }

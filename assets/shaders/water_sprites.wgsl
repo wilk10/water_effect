@@ -32,19 +32,19 @@
 // var<uniform> time: Time;
 
 @group(1) @binding(0)
-var water_effect_texture: texture_2d<f32>;
+var water_texture: texture_2d<f32>;
 @group(1) @binding(1)
-var water_effect_sampler: sampler;
+var water_sampler: sampler;
 
 @fragment
 fn fragment(
     #import bevy_sprite::mesh2d_vertex_output
 ) -> @location(0) vec4<f32> {
 
-    var input_colour: vec4<f32> = textureSample(water_effect_texture, water_effect_sampler, uv);
+    var input_colour: vec4<f32> = textureSample(water_texture, water_sampler, uv);
 
     if input_colour.a > 0. {
-        input_colour = vec4<f32>(input_colour.x, input_colour.y, input_colour.z, 1.);
+        input_colour = vec4<f32>(input_colour, 1.);
     } else {
         input_colour = vec4<f32>(0., 0., 0., 0.);
     }
