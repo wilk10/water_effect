@@ -215,6 +215,9 @@ impl Node for WaterMaskNode {
             .unwrap();
 
         let view_entity = graph.get_input_entity(Self::IN_VIEW).unwrap();
+
+        dbg!(&view_entity);
+
         let stencil_phase = match self.query.get_manual(world, view_entity) {
             Ok(q) => q,
             Err(_) => return Ok(()),
@@ -234,14 +237,20 @@ impl Node for WaterMaskNode {
                 })],
                 depth_stencil_attachment: None,
             });
+
+        dbg!(&pass_raw);
+
         let mut pass = TrackedRenderPass::new(pass_raw);
 
         let draw_functions = world
             .get_resource::<DrawFunctions<WaterMask>>()
             .unwrap();
         let mut draw_functions = draw_functions.write();
-        
+
         for item in stencil_phase.items.iter() {
+
+            dbg!(&item);
+
             let draw_function = draw_functions.get_mut(item.draw_function()).unwrap();
             draw_function.draw(world, &mut pass, view_entity, item);
         }

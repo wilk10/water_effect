@@ -109,6 +109,21 @@ impl WaterEffectResources {
         })
     }
 
+    fn create_time_uniform_bind_group(
+        device: &RenderDevice,
+        time_bind_group_layout: &BindGroupLayout,
+        time_uniform_buffer: &Buffer
+    ) -> BindGroup {
+        device.create_bind_group(&BindGroupDescriptor {
+            label: None,
+            layout: time_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: time_uniform_buffer.as_entire_binding(),
+            }],
+        })
+    }
+
     fn create_bind_group(
         device: &RenderDevice,
         layout: &BindGroupLayout,
@@ -390,19 +405,19 @@ impl FromWorld for WaterEffectResources {
         );
 
         let ripples_time_bind_group_layout =
-        device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("jfa_ripples_time_bind_group_layout"),
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::FRAGMENT,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: BufferSize::new(std::mem::size_of::<f32>() as u64),
-                },
-                count: None,
-            }],
-        });
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: Some("jfa_ripples_time_bind_group_layout"),
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: BufferSize::new(std::mem::size_of::<f32>() as u64),
+                    },
+                    count: None,
+                }],
+            });
 
         let ripples_time_uniform_buffer = device.create_buffer(&BufferDescriptor {
                 label: Some("ripples_time_uniform_buffer"),
@@ -411,14 +426,20 @@ impl FromWorld for WaterEffectResources {
                 mapped_at_creation: false,
             });
 
-        let ripples_time_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("jfa_ripples_time_bind_group"),
-            layout: &ripples_time_bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: ripples_time_uniform_buffer.as_entire_binding(),
-            }],
-        });
+        // let ripples_time_bind_group = device.create_bind_group(&BindGroupDescriptor {
+        //     label: Some("jfa_ripples_time_bind_group"),
+        //     layout: &ripples_time_bind_group_layout,
+        //     entries: &[BindGroupEntry {
+        //         binding: 0,
+        //         resource: ripples_time_uniform_buffer.as_entire_binding(),
+        //     }],
+        // });
+
+        let ripples_time_bind_group = Self::create_time_uniform_bind_group(
+            &device, 
+            &ripples_time_bind_group_layout, 
+            &ripples_time_uniform_buffer
+        );
 
         WaterEffectResources {
             mask_multisample,
@@ -549,7 +570,13 @@ pub fn recreate(
             &water_effect.mask_output.default_view,
             &water_effect.sampler,
         );
-    }
 
-    // TODO: i guess i need to recreate stuff here too?? 
+        // TODO: i guess i need to recreate stuff here too?? 
+
+        water_effect.ripples_time_bind_group = WaterEffectResources::create_time_uniform_bind_group(
+            &device,
+            &water_effect.ripples_time_bind_group_layout,
+            &water_effect.ripples_time_uniform_buffer,
+        );
+    }
 }

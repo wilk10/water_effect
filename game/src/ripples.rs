@@ -151,6 +151,8 @@ impl RipplesNode {
             spec.specialize(&mut cache, &base, key)
         });
 
+        dbg!(&pipeline_id);
+
         let camera_query = QueryState::new(world);
         let ripples_query = QueryState::new(world);
 
@@ -193,9 +195,10 @@ impl Node for RipplesNode {
         
 
         let view_ent = graph.get_input_entity(Self::IN_VIEW)?;
-        graph.set_output(Self::OUT_VIEW, view_ent)?;
 
         dbg!(&view_ent);
+
+        graph.set_output(Self::OUT_VIEW, view_ent)?;
 
         let (extracted_camera, _ripples_camera_tag) = &self.camera_query.get_manual(world, view_ent).unwrap();
 
@@ -246,6 +249,8 @@ impl Node for RipplesNode {
                 // TODO (from Bevy JFA...): support outlines being occluded by world geometry
                 depth_stencil_attachment: None,
             });
+
+        dbg!(&render_pass);
 
         let mut tracked_pass = TrackedRenderPass::new(render_pass);
         tracked_pass.set_render_pipeline(pipeline);

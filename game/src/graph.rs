@@ -70,6 +70,8 @@ pub fn water_effect(render_app: &mut App) -> Result<RenderGraph, RenderGraphErro
         slot_type: SlotType::Entity,
     }]);
 
+    dbg!(&input_node_id);
+
     // Graph order:
     // 1. Mask
     // 2. JFA Init

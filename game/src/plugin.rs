@@ -22,10 +22,6 @@ use bevy::render::renderer::RenderQueue;
 use crate::components::WaterEffectImages;
 use crate::components::WaterSpritesMaterial;
 use crate::ripples_style::RipplesStyle;
-// use crate::components::WaterEffect;
-// use crate::render::WaterEffectPipeline;
-// use crate::render::DrawWaterEffect;
-// use crate::render::AdditionalDebugNode;
 use crate::mask::WaterMask;
 use crate::mask::DrawWaterMask;
 use crate::resources;
@@ -36,7 +32,7 @@ use crate::ripples::RipplesPipeline;
 use crate::graph;
 use crate::components::WaterSpritesToTexture;
 use crate::components::RipplesCamera;
-use crate::components::TimeMeta;
+use crate::components::TimeBuffer;
 use crate::components::ExtractedTime;
 
 
@@ -45,14 +41,15 @@ pub struct WaterEffectPlugin;
 impl Plugin for WaterEffectPlugin {
     fn build(&self, app: &mut App) {
 
+        // TODO: probably i can remove this, and in `prepare_time` system i can query WaterEffectResources instead
         let water_effect_resources = resources::WaterEffectResources::from_world(&mut app.world);
-        let time_meta = TimeMeta::new(&water_effect_resources.ripples_time_uniform_buffer);
+        let time_buffer = TimeBuffer::new(&water_effect_resources.ripples_time_uniform_buffer);
 
         app
             .add_plugin(ExtractComponentPlugin::<RipplesCamera>::default()) // TODO: is this necessary?
+            .add_plugin(ExtractResourcePlugin::<ExtractedTime>::default())
             .add_plugin(Material2dPlugin::<WaterSpritesMaterial>::default())
             .add_plugin(RenderAssetPlugin::<RipplesStyle>::default())
-            .add_plugin(ExtractResourcePlugin::<ExtractedTime>::default())
             .add_asset::<RipplesStyle>()
             .init_resource::<WaterEffectImages>();
 
@@ -67,7 +64,7 @@ impl Plugin for WaterEffectPlugin {
             .add_render_command::<WaterMask, DrawWaterMask>()
             // .init_resource::<resources::WaterEffectResources>()
             .insert_resource(water_effect_resources)
-            .insert_resource(time_meta)
+            .insert_resource(time_buffer)
             .init_resource::<WaterMaskPipeline>()
             .init_resource::<SpecializedMeshPipelines<WaterMaskPipeline>>()
             .init_resource::<JfaInitPipeline>()
@@ -115,6 +112,9 @@ fn extract_ripples_styles(
             .map(|(entity, style)| (entity, (style.clone(),))),
     );
     *previous_ripples_styles_len = batches.len();
+
+    dbg!(&batches);
+
     commands.insert_or_spawn_batch(batches);
 }
 
@@ -123,6 +123,9 @@ fn extract_ripples_camera_and_add_water_mask_phase(
     cameras: Query<Entity, With<RipplesCamera>>,
 ) {
     for entity in cameras.iter() {
+
+        dbg!(&entity);
+
         commands
             .get_or_spawn(entity)
             .insert(RenderPhase::<WaterMask>::default());
@@ -131,11 +134,11 @@ fn extract_ripples_camera_and_add_water_mask_phase(
 
 fn prepare_time(
     time: Res<ExtractedTime>,
-    time_meta: ResMut<TimeMeta>,
+    time_buffer: Res<TimeBuffer>,
     render_queue: Res<RenderQueue>,
 ) {
     render_queue.write_buffer(
-        &time_meta.buffer,
+        &time_buffer.buffer,
         0,
         bevy::core::cast_slice(&[time.seconds_since_startup]),
     );
@@ -163,16 +166,21 @@ fn queue_water_mask(
 
         // dbg!(&view.width);
         // dbg!(&view.height);
-        // dbg!(&visible_entities);
+        dbg!(&visible_entities);
 
         // let view_matrix = view.transform.compute_matrix();
         // let inv_view_row_2 = view_matrix.inverse().row(2);
 
         for visible_entity in visible_entities.entities.iter().copied() {
+
+            dbg!(&visible_entity);
+
             let (entity, mesh2d_handle, mesh2d_uniform) = match water_sprites_mesh.get(visible_entity) {
                 Ok(m) => m,
                 Err(_) => continue,
             };
+
+            dbg!(&mesh2d_handle);
 
             let mesh = match render_meshes.get(&mesh2d_handle.0) {
                 Some(m) => m,
@@ -181,11 +189,15 @@ fn queue_water_mask(
 
             let key = Mesh2dPipelineKey::from_primitive_topology(mesh.primitive_topology);
 
+            dbg!(&key);
+
             let pipeline = pipelines
                 .specialize(&mut pipeline_cache, &mesh_mask_pipeline, key, &mesh.layout)
                 .unwrap();
 
             let mesh_z = mesh2d_uniform.transform.w_axis.z;
+
+            dbg!(&mesh_z);
 
             mesh_mask_phase.add(WaterMask {
                 entity,

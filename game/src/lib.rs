@@ -16,6 +16,8 @@ use crate::ripples_style::RipplesStyle;
 use crate::components::*;
 use crate::plugin::WaterEffectPlugin;
 
+// TODO: most likely i can just move it inside WaterEffectResources
+
 // TODO: still don't understand this
 const JFA_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rg16Snorm;
 // TODO: still don't understand this
@@ -74,7 +76,7 @@ fn setup(
             transform: Transform::from_xyz(-200.0, 0.0, 1.0),
             ..Default::default()
         })
-        .insert(RotationSpeed(0.8))
+        .insert(RotationSpeed(0.08))
         // .insert(WaterSprite)
         .insert(WaterEffectImages::render_layers())
         .id();
@@ -91,7 +93,7 @@ fn setup(
             transform: Transform::from_xyz(0.0, 0.0, 2.0),
             ..Default::default()
         })
-        .insert(RotationSpeed(0.6))
+        .insert(RotationSpeed(0.06))
         // .insert(WaterSprite)
         .insert(WaterEffectImages::render_layers())
         .id();
@@ -108,7 +110,7 @@ fn setup(
             transform: Transform::from_xyz(200.0, 0.0, 3.0),
             ..Default::default()
         })
-        .insert(RotationSpeed(0.4))
+        .insert(RotationSpeed(0.04))
         // .insert(WaterSprite)
         .insert(WaterEffectImages::render_layers())
         .id();
@@ -129,8 +131,6 @@ fn setup(
     let main_camera = MainCameraBundle::default();
     let camera_z = main_camera.z();
 
-    dbg!(camera_z);
-
     let main_camera_entity = commands.spawn_bundle(main_camera).id();
     let water_sprites_camera_entity = commands.spawn_bundle(WaterSpritesCameraBundle::new(&water_effect_images)).id();
     let ripples_camera_entity = commands.spawn_bundle(RipplesCameraBundle::default()).id();
@@ -148,10 +148,12 @@ fn setup(
         &mut ripples_styles,
     )).id();
 
+    println!("\n=============================================");
     dbg!(&main_camera_entity);
     dbg!(&water_sprites_camera_entity);
     dbg!(&ripples_camera_entity);
     dbg!(&water_sprites_texture_entity);
+    dbg!(camera_z);
 
     commands.entity(main_camera_entity).push_children(&[water_sprites_camera_entity]);
     commands.entity(water_sprites_camera_entity).push_children(&[ripples_camera_entity, water_sprites_texture_entity]);

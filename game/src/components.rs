@@ -17,7 +17,7 @@ use crate::ripples_style::RipplesStyle;
 #[derive(Clone)]
 pub struct WaterEffectImages {
     pub rendered_water_sprites: Handle<Image>,
-    pub rendered_ripples: Handle<Image>,
+    pub rendered_ripples: Handle<Image>, // TODO: need to remove this
 }
 
 impl WaterEffectImages {
@@ -143,16 +143,29 @@ pub struct RipplesCameraBundle {
     visibility: Visibility,
     computed_visibility: ComputedVisibility,
     #[bundle]
-    bundle: Camera2dBundle,
+    camera_bundle: Camera2dBundle,
 }
 
 impl Default for RipplesCameraBundle {
     fn default() -> Self {
+        let mut camera_bundle = Camera2dBundle::default();
+        camera_bundle.camera_2d = Camera2d {
+            clear_color: ClearColorConfig::None, // NOTE: i think this is correct...? not sure
+        };
+        camera_bundle.camera = Camera {
+            // render before the "main pass" camera, after WaterSpritesCameraBundle
+            priority: -1,
+            // TODO: this currently renders to the primary window, but if i want more control,
+            // it can render to an Image, if i want. I don't know, let's see
+            ..Default::default()
+        };
+        camera_bundle.transform = Transform::from_translation(Vec3::ZERO);
+
         Self {
             tag: RipplesCamera,
             visibility: Visibility::default(),
             computed_visibility: ComputedVisibility::default(),
-            bundle: Camera2dBundle::default(),
+            camera_bundle,
         }
     }
 }
@@ -160,6 +173,7 @@ impl Default for RipplesCameraBundle {
 #[derive(Component)]
 pub struct RipplesCamera;
 
+// TODO: try to see if i can remove this
 impl ExtractComponent for RipplesCamera {
     type Query = Read<RipplesCamera>;
 
@@ -169,7 +183,6 @@ impl ExtractComponent for RipplesCamera {
         RipplesCamera
     }
 }
-
 
 #[derive(Bundle)]
 pub struct WaterSpritesCameraBundle {
@@ -195,8 +208,8 @@ impl WaterSpritesCameraBundle {
             clear_color: ClearColorConfig::Custom(color),
         };
         camera_bundle.camera = Camera {
-            // render before the "main pass" camera
-            priority: -1,
+            // render before the RipplesCamera
+            priority: -2,
             target: RenderTarget::Image(image_handle),
             ..Default::default()
         };
@@ -256,18 +269,6 @@ pub struct WaterSpritesCamera;
 //     }
 // }
 
-// #[derive(Debug, Component)]
-// pub struct WaterEffect;
-
-// impl ExtractComponent for WaterEffect {
-//     type Query = Read<WaterEffect>;
-
-//     type Filter = ();
-
-//     fn extract_component(_: bevy::ecs::query::QueryItem<Self::Query>) -> Self {
-//         WaterEffect
-//     }
-// }
 
 #[derive(Default, Bundle)]
 pub struct WaterSpritesToTextureBundle {
@@ -366,11 +367,12 @@ impl ExtractResource for ExtractedTime {
     }
 }
 
-pub struct TimeMeta {
+// TODO: probably i can remove this, and in `prepare_time` system i can query WaterEffectResources instead
+pub struct TimeBuffer {
     pub buffer: Buffer,
 }
 
-impl TimeMeta {
+impl TimeBuffer {
     pub fn new(buffer: &Buffer) -> Self {
         Self {
             buffer: buffer.clone(),

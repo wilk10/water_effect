@@ -148,6 +148,8 @@ impl Node for JfaNode {
             Err(_) => return Ok(()),
         };
 
+        dbg!(&width);
+
         let pipeline = world.get_resource::<JfaPipeline>().unwrap();
         let pipeline_cache = world.get_resource::<PipelineCache>().unwrap();
         let cached_pipeline = match pipeline_cache.get_render_pipeline(pipeline.cached) {
@@ -169,6 +171,8 @@ impl Node for JfaNode {
         //let max_exp = width.log2().ceil() as usize;
         for it in 0..=max_exp {
             let exp = max_exp - it;
+
+            dbg!(&exp);
 
             let target: &TextureView;
             let src: &BindGroup;
@@ -214,6 +218,10 @@ impl Node for JfaNode {
                         color_attachments: &[Some(attachment)],
                         depth_stencil_attachment: None,
                     });
+
+            dbg!(&render_pass);
+            dbg!(&res.jfa_distance_offsets[exp]);
+
             let mut tracked_pass = TrackedRenderPass::new(render_pass);
             tracked_pass.set_render_pipeline(cached_pipeline);
             tracked_pass.set_bind_group(0, &res.dimensions_bind_group, &[]);

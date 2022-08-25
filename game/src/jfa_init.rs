@@ -140,6 +140,9 @@ impl Node for JfaInitNode {
                 })],
                 depth_stencil_attachment: None,
             });
+
+        dbg!(&render_pass);
+
         let mut tracked_pass = TrackedRenderPass::new(render_pass);
         tracked_pass.set_render_pipeline(cached_pipeline);
         tracked_pass.set_bind_group(0, &res.dimensions_bind_group, &[]);
