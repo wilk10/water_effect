@@ -16,11 +16,11 @@ use bevy::{
     window::WindowId,
 };
 
-use crate::{jfa, water_effect, JFA_TEXTURE_FORMAT};
+use crate::{jfa, JFA_TEXTURE_FORMAT, ripples_style};
 
 const JFA_FROM_PRIMARY: &str = "jfa_from_primary_output_bind_group";
 const JFA_FROM_SECONDARY: &str = "jfa_from_secondary_output_bind_group";
-const JFA_WATER_EFFECT_SRC: &str = "jfa_water_effect_src_bind_group";
+const JFA_RIPPLES_SRC: &str = "jfa_ripples_src_bind_group";
 
 pub struct WaterEffectResources {
     // Multisample target for initial mask pass.
@@ -59,11 +59,13 @@ pub struct WaterEffectResources {
     // Bind groups for the final jump flood pass.
     pub jfa_final_output: CachedTexture,
 
-    // Bind group layout for sampling JFA results in the outline shader.
-    pub water_effect_src_bind_group_layout: BindGroupLayout,
-    // Bind group layout for outline style parameters.
-    pub water_effect_params_bind_group_layout: BindGroupLayout,
-    pub water_effect_src_bind_group: BindGroup,
+    // Bind group layout for sampling JFA results in the ripples shader.
+    pub ripples_src_bind_group_layout: BindGroupLayout,
+    // Bind group layout for ripples style parameters.
+    pub ripples_params_bind_group_layout: BindGroupLayout,
+    pub ripples_src_bind_group: BindGroup,
+
+    // TODO: bind group for extracted time (i think)
 }
 
 impl WaterEffectResources {
@@ -112,7 +114,8 @@ fn create_jfa_bind_group(
     })
 }
 
-fn create_water_effect_src_bind_group(
+// NOTE: group 1 in the shader
+fn create_ripples_src_bind_group(
     device: &RenderDevice,
     layout: &BindGroupLayout,
     label: &str,
@@ -223,6 +226,7 @@ impl FromWorld for WaterEffectResources {
                     },
                 ],
             });
+
         let jfa_init_bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("water_effect_jfa_init_bind_group"),
             layout: &jfa_init_bind_group_layout,
@@ -311,13 +315,13 @@ impl FromWorld for WaterEffectResources {
             &sampler,
         );
 
-        let mut water_effect_params_buffer =
-            UniformBuffer::from(water_effect::WaterEffectParams::default());
-        water_effect_params_buffer.write_buffer(&device, &queue);
+        let mut ripples_params_buffer =
+            UniformBuffer::from(ripples_style::RipplesParams::default());
+        ripples_params_buffer.write_buffer(&device, &queue);
 
-        let water_effect_src_bind_group_layout =
+        let ripples_src_bind_group_layout =
             device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-                label: Some("jfa_water_effect_bind_group_layout"),
+                label: Some("jfa_ripples_bind_group_layout"),
                 entries: &[
                     // JFA texture
                     BindGroupLayoutEntry {
@@ -351,28 +355,30 @@ impl FromWorld for WaterEffectResources {
                 ],
             });
 
-        let water_effect_params_bind_group_layout =
+        let ripples_params_bind_group_layout =
             device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-                label: Some("jfa_water_effect_params_bind_group_layout"),
+                label: Some("jfa_ripples_params_bind_group_layout"),
                 entries: &[
-                    // OutlineParams
+                    // RipplesParams
                     BindGroupLayoutEntry {
                         binding: 0,
                         visibility: ShaderStages::FRAGMENT,
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Uniform,
                             has_dynamic_offset: false,
-                            min_binding_size: Some(water_effect::WaterEffectParams::min_size()),
+                            min_binding_size: Some(ripples_style::RipplesParams::min_size()),
                         },
                         count: None,
                     },
                 ],
             });
 
-        let water_effect_src_bind_group = create_water_effect_src_bind_group(
+        // TODO: possibly time uniform bind group layout goes here?
+
+        let ripples_src_bind_group = create_ripples_src_bind_group(
             &device,
-            &water_effect_src_bind_group_layout,
-            "jfa_water_effect_src_bind_group",
+            &ripples_src_bind_group_layout,
+            "jfa_ripples_src_bind_group",
             &jfa_final_output.default_view,
             &mask_output.default_view,
             &sampler,
@@ -395,9 +401,9 @@ impl FromWorld for WaterEffectResources {
             jfa_final_output,
             jfa_from_secondary_bind_group,
             jfa_from_primary_bind_group,
-            water_effect_src_bind_group_layout,
-            water_effect_params_bind_group_layout,
-            water_effect_src_bind_group,
+            ripples_src_bind_group_layout,
+            ripples_params_bind_group_layout,
+            ripples_src_bind_group,
         }
     }
 }
@@ -496,10 +502,10 @@ pub fn recreate(
     let jfa_final_output = textures.get(&device, jfa_final_desc);
     if jfa_final_output.texture.id() != old_jfa_final {
         water_effect.jfa_final_output = jfa_final_output;
-        water_effect.water_effect_src_bind_group = create_water_effect_src_bind_group(
+        water_effect.ripples_src_bind_group = create_ripples_src_bind_group(
             &device,
-            &water_effect.water_effect_src_bind_group_layout,
-            JFA_WATER_EFFECT_SRC,
+            &water_effect.ripples_src_bind_group_layout,
+            JFA_RIPPLES_SRC,
             &water_effect.jfa_final_output.default_view,
             &water_effect.mask_output.default_view,
             &water_effect.sampler,

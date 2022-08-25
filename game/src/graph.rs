@@ -12,7 +12,7 @@ use bevy::{
 };
 
 use crate::{
-    jfa::JfaNode, jfa_init::JfaInitNode, mask::WaterMaskNode, water_effect::WaterEffectNode,
+    jfa::JfaNode, jfa_init::JfaInitNode, mask::WaterMaskNode, ripples::RipplesNode,
 };
 
 pub(crate) mod water_effect {
@@ -26,7 +26,7 @@ pub(crate) mod water_effect {
         pub const MASK_PASS: &str = "mask_pass";
         pub const JFA_INIT_PASS: &str = "jfa_init_pass";
         pub const JFA_PASS: &str = "jfa_pass";
-        pub const WATER_EFFECT_PASS: &str = "water_effect_pass";
+        pub const RIPPLES_PASS: &str = "ripples_pass";
     }
 }
 
@@ -74,7 +74,7 @@ pub fn water_effect(render_app: &mut App) -> Result<RenderGraph, RenderGraphErro
     // 1. Mask
     // 2. JFA Init
     // 3. JFA
-    // 4. Water Effect
+    // 4. Ripples
 
     let mask_node = WaterMaskNode::new(&mut render_app.world);
     let jfa_init_node = JfaInitNode;
@@ -82,13 +82,12 @@ pub fn water_effect(render_app: &mut App) -> Result<RenderGraph, RenderGraphErro
     // TODO: BevyDefault for surface texture format is an anti-pattern;
     // the target texture format should be queried from the window when
     // Bevy exposes that functionality.
-    let water_effect_node =
-        WaterEffectNode::new(&mut render_app.world, TextureFormat::bevy_default());
+    let ripples_node = RipplesNode::new(&mut render_app.world, TextureFormat::bevy_default());
 
     graph.add_node(water_effect::node::MASK_PASS, mask_node);
     graph.add_node(water_effect::node::JFA_INIT_PASS, jfa_init_node);
     graph.add_node(water_effect::node::JFA_PASS, jfa_node);
-    graph.add_node(water_effect::node::WATER_EFFECT_PASS, water_effect_node);
+    graph.add_node(water_effect::node::RIPPLES_PASS, ripples_node);
 
     // Input -> Mask
     graph.add_slot_edge(
@@ -122,20 +121,20 @@ pub fn water_effect(render_app: &mut App) -> Result<RenderGraph, RenderGraphErro
         JfaNode::IN_BASE,
     )?;
 
-    // Input -> Water Effect
+    // Input -> Ripples
     graph.add_slot_edge(
         input_node_id,
         water_effect::input::VIEW_ENTITY,
-        water_effect::node::WATER_EFFECT_PASS,
-        WaterEffectNode::IN_VIEW,
+        water_effect::node::RIPPLES_PASS,
+        RipplesNode::IN_VIEW,
     )?;
 
-    // JFA -> Water Effect
+    // JFA -> Ripples
     graph.add_slot_edge(
         water_effect::node::JFA_PASS,
         JfaNode::OUT_JUMP,
-        water_effect::node::WATER_EFFECT_PASS,
-        WaterEffectNode::IN_JFA,
+        water_effect::node::RIPPLES_PASS,
+        RipplesNode::IN_JFA,
     )?;
 
     dbg!(&graph);

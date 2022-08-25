@@ -64,7 +64,7 @@ impl RenderAsset for RipplesStyle {
 
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: None,
-            layout: &water_effect_res.water_effect_params_bind_group_layout,
+            layout: &water_effect_res.ripples_params_bind_group_layout,
             entries: &[BindGroupEntry {
                 binding: 0,
                 resource: buffer.buffer().unwrap().as_entire_binding(),

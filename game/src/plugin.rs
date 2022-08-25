@@ -33,7 +33,7 @@ use crate::resources;
 use crate::mask::WaterMaskPipeline;
 use crate::jfa_init::JfaInitPipeline;
 use crate::jfa::JfaPipeline;
-use crate::water_effect::WaterEffectPipeline;
+use crate::ripples::RipplesPipeline;
 use crate::graph;
 use crate::components::WaterSpritesToTexture;
 use crate::components::RipplesCamera;
@@ -63,8 +63,8 @@ impl Plugin for WaterEffectPlugin {
             .init_resource::<SpecializedMeshPipelines<WaterMaskPipeline>>()
             .init_resource::<JfaInitPipeline>()
             .init_resource::<JfaPipeline>()
-            .init_resource::<WaterEffectPipeline>()
-            .init_resource::<SpecializedRenderPipelines<WaterEffectPipeline>>()
+            .init_resource::<RipplesPipeline>()
+            .init_resource::<SpecializedRenderPipelines<RipplesPipeline>>()
             .add_system_to_stage(RenderStage::Extract, extract_ripples_styles)
             .add_system_to_stage(RenderStage::Extract, extract_ripples_camera_and_add_water_mask_phase)
             .add_system_to_stage(RenderStage::Prepare,resources::recreate)

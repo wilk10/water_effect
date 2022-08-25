@@ -6,8 +6,8 @@ mod mask;
 mod plugin;
 // mod render;
 mod resources;
+mod ripples;
 mod ripples_style;
-mod water_effect;
 
 use bevy::prelude::*;
 use bevy::render::render_resource::*;

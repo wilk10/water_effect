@@ -5,14 +5,7 @@ use bevy::{
         render_asset::RenderAssets,
         render_graph::{Node, NodeRunError, RenderGraphContext, SlotInfo, SlotType},
         render_phase::TrackedRenderPass,
-        render_resource::{
-            BindGroup, BindGroupLayout, BlendComponent, BlendFactor, BlendOperation, BlendState,
-            CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState, LoadOp,
-            MultisampleState, Operations, PipelineCache, RenderPassColorAttachment,
-            RenderPassDescriptor, RenderPipelineDescriptor, ShaderType, SpecializedRenderPipeline,
-            SpecializedRenderPipelines, TextureFormat, TextureSampleType, TextureUsages,
-            UniformBuffer, VertexState,
-        },
+        render_resource::*,
         renderer::RenderContext,
         view::ExtractedWindows,
     },
@@ -25,82 +18,47 @@ use crate::{
     FULLSCREEN_PRIMITIVE_STATE,
 };
 
-#[derive(Clone, Debug, Default, PartialEq, ShaderType)]
-pub struct WaterEffectParams {
-    pub(crate) water_color: Vec4,
-    pub(crate) ripples_color: Vec4,
-    pub(crate) distance_from_coast: f32,
-    pub(crate) time: f32,      // ??
-    pub(crate) frequency: f32, // https://itscai.us/blog/post/jfa/
-    pub(crate) speed: f32,
-}
-
-impl WaterEffectParams {
-    pub fn new(
-        water_color: Color,
-        ripples_color: Color,
-        distance_from_coast: f32,
-        time: f32,
-        frequency: f32,
-        speed: f32,
-    ) -> WaterEffectParams {
-        let water_color: Vec4 = water_color.as_rgba_f32().into();
-        let ripples_color: Vec4 = ripples_color.as_rgba_f32().into();
-
-        WaterEffectParams {
-            water_color,
-            ripples_color,
-            distance_from_coast,
-            time,
-            frequency,
-            speed,
-        }
-    }
-}
-
-pub struct GpuWaterEffectParams {
-    pub(crate) params: WaterEffectParams,
-    pub(crate) _buffer: UniformBuffer<WaterEffectParams>,
-    pub(crate) bind_group: BindGroup,
-}
-
 #[derive(Clone, Debug)]
-pub struct WaterEffectPipeline {
+pub struct RipplesPipeline {
     dimensions_layout: BindGroupLayout,
     input_layout: BindGroupLayout,
     params_layout: BindGroupLayout,
+    // TODO: need the time bind group layout here
     shader: Handle<Shader>,
 }
 
-impl FromWorld for WaterEffectPipeline {
+impl FromWorld for RipplesPipeline {
     fn from_world(world: &mut World) -> Self {
         let res = world
             .get_resource::<resources::WaterEffectResources>()
             .unwrap();
 
         let asset_server = world.resource::<AssetServer>();
-        let shader = asset_server.load("shaders/water_effect.wgsl");
+        let shader = asset_server.load("shaders/ripples.wgsl");
 
         let dimensions_layout = res.dimensions_bind_group_layout.clone();
-        let input_layout = res.water_effect_src_bind_group_layout.clone();
-        let params_layout = res.water_effect_params_bind_group_layout.clone();
+        let input_layout = res.ripples_src_bind_group_layout.clone();
+        let params_layout = res.ripples_params_bind_group_layout.clone();
 
-        WaterEffectPipeline {
+        // TODO: get the time bind group layout somehow
+
+        RipplesPipeline {
             dimensions_layout,
             input_layout,
             params_layout,
+            // TODO: need the time bind group layout
             shader,
         }
     }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct WaterEffectPipelineKey {
+pub struct RipplesPipelineKey {
     format: TextureFormat,
 }
 
-impl WaterEffectPipelineKey {
-    pub fn new(format: TextureFormat) -> Option<WaterEffectPipelineKey> {
+impl RipplesPipelineKey {
+    pub fn new(format: TextureFormat) -> Option<RipplesPipelineKey> {
         let info = format.describe();
 
         if info.sample_type == TextureSampleType::Depth {
@@ -113,15 +71,15 @@ impl WaterEffectPipelineKey {
             .allowed_usages
             .contains(TextureUsages::RENDER_ATTACHMENT)
         {
-            Some(WaterEffectPipelineKey { format })
+            Some(RipplesPipelineKey { format })
         } else {
             None
         }
     }
 }
 
-impl SpecializedRenderPipeline for WaterEffectPipeline {
-    type Key = WaterEffectPipelineKey;
+impl SpecializedRenderPipeline for RipplesPipeline {
+    type Key = RipplesPipelineKey;
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
         let blend = BlendState {
@@ -138,7 +96,7 @@ impl SpecializedRenderPipeline for WaterEffectPipeline {
         };
 
         RenderPipelineDescriptor {
-            label: Some("jfa_water_effect_pipeline".into()),
+            label: Some("jfa_ripples_pipeline".into()),
             layout: Some(vec![
                 self.dimensions_layout.clone(),
                 self.input_layout.clone(),
@@ -171,36 +129,36 @@ impl SpecializedRenderPipeline for WaterEffectPipeline {
     }
 }
 
-pub struct WaterEffectNode {
+pub struct RipplesNode {
     pipeline_id: CachedRenderPipelineId,
     camera_query: QueryState<(&'static ExtractedCamera, &'static RipplesCamera)>,
     ripples_query: QueryState<&'static Handle<RipplesStyle>>,
 }
 
-impl WaterEffectNode {
+impl RipplesNode {
     pub const IN_VIEW: &'static str = "in_view";
     pub const IN_JFA: &'static str = "in_jfa";
     pub const OUT_VIEW: &'static str = "out_view";
 
-    pub fn new(world: &mut World, target_format: TextureFormat) -> WaterEffectNode {
+    pub fn new(world: &mut World, target_format: TextureFormat) -> RipplesNode {
         let pipeline_id = world.resource_scope(|world, mut cache: Mut<PipelineCache>| {
-            let base = world.get_resource::<WaterEffectPipeline>().unwrap().clone();
+            let base = world.get_resource::<RipplesPipeline>().unwrap().clone();
             let mut spec = world
-                .get_resource_mut::<SpecializedRenderPipelines<WaterEffectPipeline>>()
+                .get_resource_mut::<SpecializedRenderPipelines<RipplesPipeline>>()
                 .unwrap();
-            let key = WaterEffectPipelineKey::new(target_format)
-                .expect("invalid format for WaterEffectNode");
+            let key = RipplesPipelineKey::new(target_format)
+                .expect("invalid format for RipplesNode");
             spec.specialize(&mut cache, &base, key)
         });
 
         let camera_query = QueryState::new(world);
         let ripples_query = QueryState::new(world);
 
-        WaterEffectNode { pipeline_id, camera_query, ripples_query }
+        RipplesNode { pipeline_id, camera_query, ripples_query }
     }
 }
 
-impl Node for WaterEffectNode {
+impl Node for RipplesNode {
     fn input(&self) -> Vec<SlotInfo> {
         vec![
             SlotInfo {
@@ -293,7 +251,7 @@ impl Node for WaterEffectNode {
         let render_pass = render_context
             .command_encoder
             .begin_render_pass(&RenderPassDescriptor {
-                label: Some("jfa_water_effect"),
+                label: Some("water_effect_ripples"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: target_view,
                     resolve_target: None,
@@ -302,15 +260,18 @@ impl Node for WaterEffectNode {
                         store: true,
                     },
                 })],
-                // TODO: support outlines being occluded by world geometry
+                // TODO (from Bevy JFA...): support outlines being occluded by world geometry
                 depth_stencil_attachment: None,
             });
+
+        // TODO: need to get the time bind group
 
         let mut tracked_pass = TrackedRenderPass::new(render_pass);
         tracked_pass.set_render_pipeline(pipeline);
         tracked_pass.set_bind_group(0, &res.dimensions_bind_group, &[]);
-        tracked_pass.set_bind_group(1, &res.water_effect_src_bind_group, &[]);
+        tracked_pass.set_bind_group(1, &res.ripples_src_bind_group, &[]);
         tracked_pass.set_bind_group(2, &style.bind_group, &[]);
+        // TODO: need to set the time bind group too
         tracked_pass.draw(0..3, 0..1);
 
         Ok(())
