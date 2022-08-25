@@ -1,7 +1,6 @@
 use bevy::sprite::Mesh2dPipeline;
 use bevy::sprite::Mesh2dPipelineKey;
 use bevy::{
-    // pbr::{MeshPipeline, MeshPipelineKey},
     prelude::*,
     render::{
         mesh::InnerMeshVertexBufferLayout,
@@ -20,7 +19,16 @@ use bevy::render::render_phase::SetItemPipeline;
 use bevy::sprite::SetMesh2dViewBindGroup;
 use bevy::sprite::SetMesh2dBindGroup;
 use bevy::sprite::DrawMesh2d;
+use bevy::render::render_phase::EntityRenderCommand;
+use bevy::ecs::system::lifetimeless::SRes;
+use bevy::ecs::system::SystemParamItem;
+use bevy::render::render_phase::RenderCommandResult;
+use bevy::sprite::RenderMaterials2d;
+use bevy::ecs::system::lifetimeless::SQuery;
+use bevy::ecs::system::lifetimeless::Read;
+use bevy::render::renderer::RenderDevice;
 
+use crate::components::WaterSpritesMaterial;
 use crate::{resources::WaterEffectResources};
 
 #[derive(Debug)]
@@ -62,14 +70,51 @@ impl CachedRenderPipelinePhaseItem for WaterMask {
 pub type DrawWaterMask = (
     SetItemPipeline,
     SetMesh2dViewBindGroup<0>,
-    // TODO: add the texture + sampler bind group, like Material2d does
-    SetMesh2dBindGroup<1>,
+    SetWaterTextureViewBindGroup<1>,
+    SetMesh2dBindGroup<2>,
     DrawMesh2d,
 );
+
+pub struct SetWaterTextureViewBindGroup<const I: usize>;
+
+impl<const I: usize> EntityRenderCommand for SetWaterTextureViewBindGroup<I> {
+    // type Param = SRes<TimeMeta>; // TODO: i need to extract the handle to the image into a resource, prepare it and query it here
+
+    // fn render<'w>(
+    //     _view: Entity,
+    //     _item: Entity,
+    //     time_meta: SystemParamItem<'w, '_, Self::Param>,
+    //     pass: &mut TrackedRenderPass<'w>,
+    // ) -> RenderCommandResult {
+    //     let time_bind_group = time_meta.into_inner().bind_group.as_ref().unwrap();
+    //     pass.set_bind_group(I, time_bind_group, &[]);
+
+    //     RenderCommandResult::Success
+    // }
+    type Param = (SRes<RenderMaterials2d<WaterSpritesMaterial>>, SQuery<Read<Handle<WaterSpritesMaterial>>>);
+    fn render<'w>(
+        _view: Entity,
+        item: Entity,
+        (materials, query): SystemParamItem<'w, '_, Self::Param>,
+        pass: &mut TrackedRenderPass<'w>,
+    ) -> RenderCommandResult {
+        let material2d_handle = query.get(item).unwrap();
+
+        dbg!(&material2d_handle);
+
+        let material2d = materials.into_inner().get(material2d_handle).unwrap();
+
+        dbg!(&material2d.key);
+
+        pass.set_bind_group(I, &material2d.bind_group, &[]);
+        RenderCommandResult::Success
+    }
+}
 
 pub struct WaterMaskPipeline {
     mesh_pipeline: Mesh2dPipeline,
     shader: Handle<Shader>,
+    texture_view_bind_group_layout: BindGroupLayout,
 }
 
 impl FromWorld for WaterMaskPipeline {
@@ -79,7 +124,14 @@ impl FromWorld for WaterMaskPipeline {
         let asset_server = world.resource::<AssetServer>();
         let shader = asset_server.load("shaders/mask.wgsl");
 
-        WaterMaskPipeline { mesh_pipeline, shader }
+        dbg!(&shader);
+
+        let render_device = world.resource::<RenderDevice>();
+        let texture_view_bind_group_layout = WaterSpritesMaterial::bind_group_layout(render_device);
+
+        dbg!(&texture_view_bind_group_layout);
+
+        WaterMaskPipeline { mesh_pipeline, shader, texture_view_bind_group_layout }
     }
 }
 
@@ -93,10 +145,9 @@ impl SpecializedMeshPipeline for WaterMaskPipeline {
     ) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
         let mut desc = self.mesh_pipeline.specialize(key, layout)?;
 
-        // TODO: the specialisation should look quite different, honestly
-
         desc.layout = Some(vec![
             self.mesh_pipeline.view_layout.clone(),
+            self.texture_view_bind_group_layout.clone(),
             self.mesh_pipeline.mesh_layout.clone(),
         ]);
 
@@ -120,7 +171,10 @@ impl SpecializedMeshPipeline for WaterMaskPipeline {
             alpha_to_coverage_enabled: false,
         };
 
-        desc.label = Some("mesh_stencil_pipeline".into());
+        desc.label = Some("water_mask_stencil_pipeline".into());
+
+        dbg!(&desc);
+
         Ok(desc)
     }
 }
@@ -186,13 +240,13 @@ impl Node for WaterMaskNode {
                     view: &res.mask_multisample.default_view,
                     resolve_target: Some(&res.mask_output.default_view),
                     ops: Operations {
-                        load: LoadOp::Clear(Color::BLACK.into()), // TODO: this will need to be quite different honestly
+                        load: LoadOp::Load,
                         store: true,
                     },
                 })],
                 depth_stencil_attachment: None,
             });
-        let mut pass = TrackedRenderPass::new(pass_raw); // i think from here downwards it stays the same
+        let mut pass = TrackedRenderPass::new(pass_raw);
 
         let draw_functions = world
             .get_resource::<DrawFunctions<WaterMask>>()
