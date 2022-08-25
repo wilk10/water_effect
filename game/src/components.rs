@@ -7,6 +7,10 @@ use bevy::core_pipeline::clear_color::ClearColorConfig;
 use bevy::reflect::TypeUuid;
 use bevy::sprite::Material2d;
 use bevy::sprite::MaterialMesh2dBundle;
+use bevy::render::extract_resource::ExtractResource;
+use bevy::ecs::query::QueryItem;
+use bevy::render::extract_component::ExtractComponent;
+use bevy::ecs::system::lifetimeless::Read;
 
 use crate::ripples_style::RipplesStyle;
 
@@ -155,6 +159,16 @@ impl Default for RipplesCameraBundle {
 
 #[derive(Component)]
 pub struct RipplesCamera;
+
+impl ExtractComponent for RipplesCamera {
+    type Query = Read<RipplesCamera>;
+
+    type Filter = ();
+
+    fn extract_component(_: QueryItem<Self::Query>) -> Self {
+        RipplesCamera
+    }
+}
 
 
 #[derive(Bundle)]
@@ -334,6 +348,33 @@ impl WaterSpritesMaterial {
 impl Material2d for WaterSpritesMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/water_sprites.wgsl".into()
+    }
+}
+
+#[derive(Default)]
+pub struct ExtractedTime {
+    pub seconds_since_startup: f32,
+}
+
+impl ExtractResource for ExtractedTime {
+    type Source = Time;
+
+    fn extract_resource(time: &Self::Source) -> Self {
+        ExtractedTime {
+            seconds_since_startup: time.seconds_since_startup() as f32,
+        }
+    }
+}
+
+pub struct TimeMeta {
+    pub buffer: Buffer,
+}
+
+impl TimeMeta {
+    pub fn new(buffer: &Buffer) -> Self {
+        Self {
+            buffer: buffer.clone(),
+        }
     }
 }
 

@@ -1,13 +1,17 @@
-// TODO: this needs to be adapted, of course
-
 #import outline::fullscreen
 #import outline::dimensions
 
 struct Params {
-    color: vec4<f32>;
-    // Outline weight in pixels.
-    weight: f32;
+    water_color: vec4<f32>;
+    ripples_color: vec4<f32>;
+    distance_from_coast: f32,
+    frequency: f32, // https://itscai.us/blog/post/jfa/
+    speed: f32
 };
+
+struct Time {
+    time_since_startup: f32,
+}
 
 [[group(1), binding(0)]]
 var jfa_buffer: texture_2d<f32>;
@@ -18,6 +22,9 @@ var nearest_sampler: sampler;
 
 [[group(2), binding(0)]]
 var<uniform> params: Params;
+
+[[group(3), binding(0)]]
+var time: Time;
 
 struct FragmentIn {
     [[location(0)]] texcoord: vec2<f32>;
@@ -43,10 +50,10 @@ fn fragment(in: FragmentIn) -> [[location(0)]] vec4<f32> {
     // needed.
     if (mask_value < 1.0) {
         if (mask_value > 0.0) {
-            return vec4<f32>(params.color.rgb, 1.0 - mask_value);
+            return vec4<f32>(params.water_color.rgb, 1.0 - mask_value);  // TODO: this makes no sense right now
         } else {
-            let fade = clamp(params.weight - mag, 0.0, 1.0);
-            return vec4<f32>(params.color.rgb, fade);
+            let fade = clamp(params.frequency - mag, 0.0, 1.0);          // TODO: this makes no sense right now
+            return vec4<f32>(params.ripples_color.rgb, fade);            // TODO: this makes no sense right now
         }
     } else {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);

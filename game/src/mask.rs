@@ -78,20 +78,8 @@ pub type DrawWaterMask = (
 pub struct SetWaterTextureViewBindGroup<const I: usize>;
 
 impl<const I: usize> EntityRenderCommand for SetWaterTextureViewBindGroup<I> {
-    // type Param = SRes<TimeMeta>; // TODO: i need to extract the handle to the image into a resource, prepare it and query it here
-
-    // fn render<'w>(
-    //     _view: Entity,
-    //     _item: Entity,
-    //     time_meta: SystemParamItem<'w, '_, Self::Param>,
-    //     pass: &mut TrackedRenderPass<'w>,
-    // ) -> RenderCommandResult {
-    //     let time_bind_group = time_meta.into_inner().bind_group.as_ref().unwrap();
-    //     pass.set_bind_group(I, time_bind_group, &[]);
-
-    //     RenderCommandResult::Success
-    // }
     type Param = (SRes<RenderMaterials2d<WaterSpritesMaterial>>, SQuery<Read<Handle<WaterSpritesMaterial>>>);
+
     fn render<'w>(
         _view: Entity,
         item: Entity,
@@ -252,6 +240,7 @@ impl Node for WaterMaskNode {
             .get_resource::<DrawFunctions<WaterMask>>()
             .unwrap();
         let mut draw_functions = draw_functions.write();
+        
         for item in stencil_phase.items.iter() {
             let draw_function = draw_functions.get_mut(item.draw_function()).unwrap();
             draw_function.draw(world, &mut pass, view_entity, item);

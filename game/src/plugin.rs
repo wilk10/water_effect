@@ -2,16 +2,13 @@ use bevy::prelude::*;
 use bevy::render::RenderApp;
 use bevy::render::render_resource::*;
 use bevy::render::RenderStage;
-use bevy::render::Extract;
 use bevy::render::render_phase::DrawFunctions;
-use bevy::core_pipeline::core_2d::Transparent2d;
 use bevy::render::render_asset::RenderAssets;
 use bevy::sprite::Mesh2dHandle;
 use bevy::sprite::Mesh2dUniform;
 use bevy::render::view::ExtractedView;
 use bevy::render::view::VisibleEntities;
 use bevy::render::render_phase::RenderPhase;
-use bevy::utils::FloatOrd;
 use bevy::sprite::Mesh2dPipelineKey;
 use bevy::render::render_phase::AddRenderCommand;
 use bevy::sprite::Material2dPlugin;
@@ -19,6 +16,8 @@ use bevy::render::render_graph::RenderGraph;
 use bevy::render::render_asset::RenderAssetPlugin;
 use bevy::render::render_phase::SetItemPipeline;
 use bevy::render::extract_component::ExtractComponentPlugin;
+use bevy::render::extract_resource::ExtractResourcePlugin;
+use bevy::render::renderer::RenderQueue;
 
 use crate::components::WaterEffectImages;
 use crate::components::WaterSpritesMaterial;
@@ -37,15 +36,23 @@ use crate::ripples::RipplesPipeline;
 use crate::graph;
 use crate::components::WaterSpritesToTexture;
 use crate::components::RipplesCamera;
+use crate::components::TimeMeta;
+use crate::components::ExtractedTime;
+
 
 pub struct WaterEffectPlugin;
 
 impl Plugin for WaterEffectPlugin {
     fn build(&self, app: &mut App) {
+
+        let water_effect_resources = resources::WaterEffectResources::from_world(&mut app.world);
+        let time_meta = TimeMeta::new(&water_effect_resources.ripples_time_uniform_buffer);
+
         app
-            // .add_plugin(ExtractComponentPlugin::<WaterEffect>::default()) // TODO: is this necessary?
+            .add_plugin(ExtractComponentPlugin::<RipplesCamera>::default()) // TODO: is this necessary?
             .add_plugin(Material2dPlugin::<WaterSpritesMaterial>::default())
             .add_plugin(RenderAssetPlugin::<RipplesStyle>::default())
+            .add_plugin(ExtractResourcePlugin::<ExtractedTime>::default())
             .add_asset::<RipplesStyle>()
             .init_resource::<WaterEffectImages>();
 
@@ -58,7 +65,9 @@ impl Plugin for WaterEffectPlugin {
             .init_resource::<DrawFunctions<WaterMask>>()
             .add_render_command::<WaterMask, SetItemPipeline>()
             .add_render_command::<WaterMask, DrawWaterMask>()
-            .init_resource::<resources::WaterEffectResources>()
+            // .init_resource::<resources::WaterEffectResources>()
+            .insert_resource(water_effect_resources)
+            .insert_resource(time_meta)
             .init_resource::<WaterMaskPipeline>()
             .init_resource::<SpecializedMeshPipelines<WaterMaskPipeline>>()
             .init_resource::<JfaInitPipeline>()
@@ -67,6 +76,7 @@ impl Plugin for WaterEffectPlugin {
             .init_resource::<SpecializedRenderPipelines<RipplesPipeline>>()
             .add_system_to_stage(RenderStage::Extract, extract_ripples_styles)
             .add_system_to_stage(RenderStage::Extract, extract_ripples_camera_and_add_water_mask_phase)
+            .add_system_to_stage(RenderStage::Prepare, prepare_time)
             .add_system_to_stage(RenderStage::Prepare,resources::recreate)
             .add_system_to_stage(RenderStage::Queue, queue_water_mask);
 
@@ -90,34 +100,6 @@ impl Plugin for WaterEffectPlugin {
         draw_2d_graph
             .add_node_edge(bevy::core_pipeline::core_2d::graph::node::MAIN_PASS, water_effect_driver)
             .unwrap();
-
-        // let mut render_graph = render_app.world.resource_mut::<RenderGraph>();
-        // let draw_2d_graph = render_graph.get_sub_graph_mut(bevy::core_pipeline::core_2d::graph::NAME).unwrap();
-        // let draw_2d_input = draw_2d_graph.input_node().unwrap().id;
-
-        // let additional_debug_node = AdditionalDebugNode::default();
-        // render_graph.add_node(AdditionalDebugNode::NAME, additional_debug_node);
-        // render_graph
-        //     .add_slot_edge(
-        //         draw_2d_input,
-        //         bevy::core_pipeline::core_2d::graph::input::VIEW_ENTITY,
-        //         additional_debug_node,
-        //         AdditionalDebugNode::INPUT_VIEW,
-        //     )
-        //     .unwrap();
-        // render_graph
-        //     .add_node_edge(
-        //         bevy::core_pipeline::core_2d::graph::node::MAIN_PASS,
-        //         AdditionalDebugNode::NAME,
-        //     )
-        //     .unwrap();
-
-        // render_app
-        //     .add_render_command::<Transparent2d, DrawWaterEffect>()
-        //     .init_resource::<WaterEffectPipeline>()
-        //     .init_resource::<SpecializedMeshPipelines<WaterEffectPipeline>>()
-        //     .add_system_to_stage(RenderStage::Extract, extract_water_effect_mesh2d)
-        //     .add_system_to_stage(RenderStage::Queue, queue_water_effect_mesh);
     }
 }
 
@@ -145,6 +127,18 @@ fn extract_ripples_camera_and_add_water_mask_phase(
             .get_or_spawn(entity)
             .insert(RenderPhase::<WaterMask>::default());
     }
+}
+
+fn prepare_time(
+    time: Res<ExtractedTime>,
+    time_meta: ResMut<TimeMeta>,
+    render_queue: Res<RenderQueue>,
+) {
+    render_queue.write_buffer(
+        &time_meta.buffer,
+        0,
+        bevy::core::cast_slice(&[time.seconds_since_startup]),
+    );
 }
 
 fn queue_water_mask(

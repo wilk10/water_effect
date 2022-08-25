@@ -23,7 +23,7 @@ pub struct RipplesPipeline {
     dimensions_layout: BindGroupLayout,
     input_layout: BindGroupLayout,
     params_layout: BindGroupLayout,
-    // TODO: need the time bind group layout here
+    time_layout: BindGroupLayout,
     shader: Handle<Shader>,
 }
 
@@ -33,20 +33,19 @@ impl FromWorld for RipplesPipeline {
             .get_resource::<resources::WaterEffectResources>()
             .unwrap();
 
-        let asset_server = world.resource::<AssetServer>();
-        let shader = asset_server.load("shaders/ripples.wgsl");
-
         let dimensions_layout = res.dimensions_bind_group_layout.clone();
         let input_layout = res.ripples_src_bind_group_layout.clone();
         let params_layout = res.ripples_params_bind_group_layout.clone();
+        let time_layout = res.ripples_time_bind_group_layout.clone();
 
-        // TODO: get the time bind group layout somehow
+        let asset_server = world.resource::<AssetServer>();
+        let shader = asset_server.load("shaders/ripples.wgsl");
 
         RipplesPipeline {
             dimensions_layout,
             input_layout,
             params_layout,
-            // TODO: need the time bind group layout
+            time_layout,
             shader,
         }
     }
@@ -101,6 +100,7 @@ impl SpecializedRenderPipeline for RipplesPipeline {
                 self.dimensions_layout.clone(),
                 self.input_layout.clone(),
                 self.params_layout.clone(),
+                self.time_layout.clone()
             ]),
             vertex: VertexState {
                 shader: self.shader.clone(),
@@ -199,23 +199,6 @@ impl Node for RipplesNode {
 
         let (extracted_camera, _ripples_camera_tag) = &self.camera_query.get_manual(world, view_ent).unwrap();
 
-        // let style = match self
-        //     .ripples_query
-        //     .get_manual(world, graph.get_input_entity(Self::IN_VIEW)?) // the input entity is the one with the handle riiiiight?
-        // {
-        //     Ok(ripples_style) => {
-        //         dims.width.max(dims.height).min(
-        //            styles
-        //                 .get(&ripples_style)
-        //                 .unwrap()
-        //                 .params
-        //                 .distance_from_coast
-        //                 .ceil(),
-        //         )
-        //     }
-        //     Err(_) => return Ok(()),
-        // };
-
         let style = match self
             .ripples_query
             .get_manual(world, graph.get_input_entity(Self::IN_VIEW)?) {
@@ -264,15 +247,13 @@ impl Node for RipplesNode {
                 depth_stencil_attachment: None,
             });
 
-        // TODO: need to get the time bind group
-
         let mut tracked_pass = TrackedRenderPass::new(render_pass);
         tracked_pass.set_render_pipeline(pipeline);
         tracked_pass.set_bind_group(0, &res.dimensions_bind_group, &[]);
         tracked_pass.set_bind_group(1, &res.ripples_src_bind_group, &[]);
         tracked_pass.set_bind_group(2, &style.bind_group, &[]);
-        // TODO: need to set the time bind group too
-        tracked_pass.draw(0..3, 0..1);
+        tracked_pass.set_bind_group(3, &res.ripples_time_bind_group, &[]);
+        tracked_pass.draw(0..4, 0..1);
 
         Ok(())
     }

@@ -1,14 +1,7 @@
 use bevy::{
     prelude::*,
     render::{
-        render_resource::{
-            AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
-            BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType,
-            BufferBindingType, DynamicUniformBuffer, Extent3d, FilterMode, Sampler,
-            SamplerBindingType, SamplerDescriptor, ShaderStages, ShaderType, TextureDescriptor,
-            TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureView,
-            TextureViewDimension, UniformBuffer,
-        },
+        render_resource::*,
         renderer::{RenderDevice, RenderQueue},
         texture::{CachedTexture, TextureCache},
         view::ExtractedWindows,
@@ -65,17 +58,20 @@ pub struct WaterEffectResources {
     pub ripples_params_bind_group_layout: BindGroupLayout,
     pub ripples_src_bind_group: BindGroup,
 
-    // TODO: bind group for extracted time (i think)
+    // Bind group layout, bind group and buffer for ripples time uniform.
+    pub ripples_time_bind_group_layout: BindGroupLayout,
+    pub ripples_time_bind_group: BindGroup,
+    pub ripples_time_uniform_buffer: Buffer,
 }
 
 impl WaterEffectResources {
-    fn create_jfa_bind_group(
+    fn create_jfa_pass_bind_group(
         &self,
         device: &RenderDevice,
         label: &str,
         input: &TextureView,
     ) -> BindGroup {
-        create_jfa_bind_group(
+        Self::create_bind_group(
             device,
             &self.jfa_bind_group_layout,
             label,
@@ -84,63 +80,74 @@ impl WaterEffectResources {
             &self.sampler,
         )
     }
-}
 
-fn create_jfa_bind_group(
-    device: &RenderDevice,
-    layout: &BindGroupLayout,
-    label: &str,
-    dist_buffer: BindingResource,
-    input: &TextureView,
-    sampler: &Sampler,
-) -> BindGroup {
-    device.create_bind_group(&BindGroupDescriptor {
-        label: Some(label),
-        layout,
-        entries: &[
-            BindGroupEntry {
-                binding: 0,
-                resource: dist_buffer,
-            },
-            BindGroupEntry {
-                binding: 1,
-                resource: BindingResource::TextureView(input),
-            },
-            BindGroupEntry {
-                binding: 2,
-                resource: BindingResource::Sampler(sampler),
-            },
-        ],
-    })
-}
+    fn create_ripples_src_bind_group(
+        device: &RenderDevice,
+        layout: &BindGroupLayout,
+        label: &str,
+        src: &TextureView,
+        mask: &TextureView,
+        sampler: &Sampler,
+    ) -> BindGroup {
+        device.create_bind_group(&BindGroupDescriptor {
+            label: Some(label),
+            layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(src),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(mask),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::Sampler(sampler),
+                },
+            ],
+        })
+    }
 
-// NOTE: group 1 in the shader
-fn create_ripples_src_bind_group(
-    device: &RenderDevice,
-    layout: &BindGroupLayout,
-    label: &str,
-    src: &TextureView,
-    mask: &TextureView,
-    sampler: &Sampler,
-) -> BindGroup {
-    device.create_bind_group(&BindGroupDescriptor {
-        label: Some(label),
-        layout,
-        entries: &[
-            BindGroupEntry {
-                binding: 0,
-                resource: BindingResource::TextureView(src),
-            },
-            BindGroupEntry {
-                binding: 1,
-                resource: BindingResource::TextureView(mask),
-            },
-            BindGroupEntry {
-                binding: 2,
-                resource: BindingResource::Sampler(sampler),
-            },
-        ],
-    })
+    fn create_bind_group(
+        device: &RenderDevice,
+        layout: &BindGroupLayout,
+        label: &str,
+        dist_buffer: BindingResource,
+        input: &TextureView,
+        sampler: &Sampler,
+    ) -> BindGroup {
+        device.create_bind_group(&BindGroupDescriptor {
+            label: Some(label),
+            layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: dist_buffer,
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(input),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::Sampler(sampler),
+                },
+            ],
+        })
+    }
+
+    fn tex_desc(label: &'static str, size: Extent3d, format: TextureFormat) -> TextureDescriptor {
+        TextureDescriptor {
+            label: Some(label),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format,
+            usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+        }
+    }
 }
 
 impl FromWorld for WaterEffectResources {
@@ -155,7 +162,7 @@ impl FromWorld for WaterEffectResources {
         let queue = world.get_resource::<RenderQueue>().unwrap().clone();
         let mut textures = world.get_resource_mut::<TextureCache>().unwrap();
 
-        let mask_output_desc = tex_desc("water_effect_mask_output", size, TextureFormat::R8Unorm);
+        let mask_output_desc = Self::tex_desc("water_effect_mask_output", size, TextureFormat::R8Unorm);
         let mask_multisample_desc = TextureDescriptor {
             label: Some("water_effect_mask_multisample"),
             sample_count: 4,
@@ -286,19 +293,19 @@ impl FromWorld for WaterEffectResources {
         jfa_distance_buffer.write_buffer(&device, &queue);
 
         let jfa_primary_output_desc =
-            tex_desc("water_effect_jfa_primary_output", size, JFA_TEXTURE_FORMAT);
+            Self::tex_desc("water_effect_jfa_primary_output", size, JFA_TEXTURE_FORMAT);
         let jfa_primary_output = textures.get(&device, jfa_primary_output_desc);
-        let jfa_secondary_output_desc = tex_desc(
+        let jfa_secondary_output_desc = Self::tex_desc(
             "water_effect_jfa_secondary_output",
             size,
             JFA_TEXTURE_FORMAT,
         );
         let jfa_secondary_output = textures.get(&device, jfa_secondary_output_desc);
         let jfa_final_output_desc =
-            tex_desc("water_effect_jfa_final_output", size, JFA_TEXTURE_FORMAT);
+            Self::tex_desc("water_effect_jfa_final_output", size, JFA_TEXTURE_FORMAT);
         let jfa_final_output = textures.get(&device, jfa_final_output_desc);
 
-        let jfa_from_secondary_bind_group = create_jfa_bind_group(
+        let jfa_from_secondary_bind_group = Self::create_bind_group(
             &device,
             &jfa_bind_group_layout,
             "water_effect_jfa_primary_bind_group",
@@ -306,7 +313,7 @@ impl FromWorld for WaterEffectResources {
             &jfa_secondary_output.default_view,
             &sampler,
         );
-        let jfa_from_primary_bind_group = create_jfa_bind_group(
+        let jfa_from_primary_bind_group = Self::create_bind_group(
             &device,
             &jfa_bind_group_layout,
             "water_effect_jfa_secondary_bind_group",
@@ -373,9 +380,7 @@ impl FromWorld for WaterEffectResources {
                 ],
             });
 
-        // TODO: possibly time uniform bind group layout goes here?
-
-        let ripples_src_bind_group = create_ripples_src_bind_group(
+        let ripples_src_bind_group = Self::create_ripples_src_bind_group(
             &device,
             &ripples_src_bind_group_layout,
             "jfa_ripples_src_bind_group",
@@ -383,6 +388,37 @@ impl FromWorld for WaterEffectResources {
             &mask_output.default_view,
             &sampler,
         );
+
+        let ripples_time_bind_group_layout =
+        device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("jfa_ripples_time_bind_group_layout"),
+            entries: &[BindGroupLayoutEntry {
+                binding: 0,
+                visibility: ShaderStages::FRAGMENT,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: BufferSize::new(std::mem::size_of::<f32>() as u64),
+                },
+                count: None,
+            }],
+        });
+
+        let ripples_time_uniform_buffer = device.create_buffer(&BufferDescriptor {
+                label: Some("ripples_time_uniform_buffer"),
+                size: std::mem::size_of::<f32>() as u64,
+                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            });
+
+        let ripples_time_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("jfa_ripples_time_bind_group"),
+            layout: &ripples_time_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: ripples_time_uniform_buffer.as_entire_binding(),
+            }],
+        });
 
         WaterEffectResources {
             mask_multisample,
@@ -404,6 +440,9 @@ impl FromWorld for WaterEffectResources {
             ripples_src_bind_group_layout,
             ripples_params_bind_group_layout,
             ripples_src_bind_group,
+            ripples_time_bind_group_layout,
+            ripples_time_bind_group,
+            ripples_time_uniform_buffer,
         }
     }
 }
@@ -436,7 +475,7 @@ pub fn recreate(
     }
 
     let old_mask = water_effect.mask_multisample.texture.id();
-    let mask_output_desc = tex_desc("water_effect_mask_output", size, TextureFormat::R8Unorm);
+    let mask_output_desc = WaterEffectResources::tex_desc("water_effect_mask_output", size, TextureFormat::R8Unorm);
     let mask_multisample_desc = TextureDescriptor {
         label: Some("water_effect_mask_multisample"),
         sample_count: 4,
@@ -466,7 +505,7 @@ pub fn recreate(
     }
 
     let old_jfa_primary = water_effect.jfa_primary_output.texture.id();
-    let jfa_primary_desc = tex_desc(
+    let jfa_primary_desc = WaterEffectResources::tex_desc(
         "water_effect_jfa_primary_output",
         jfa_size,
         JFA_TEXTURE_FORMAT,
@@ -474,7 +513,7 @@ pub fn recreate(
     let jfa_primary_output = textures.get(&device, jfa_primary_desc);
     if jfa_primary_output.texture.id() != old_jfa_primary {
         water_effect.jfa_primary_output = jfa_primary_output;
-        water_effect.jfa_from_primary_bind_group = water_effect.create_jfa_bind_group(
+        water_effect.jfa_from_primary_bind_group = water_effect.create_jfa_pass_bind_group(
             &device,
             JFA_FROM_PRIMARY,
             &water_effect.jfa_primary_output.default_view,
@@ -482,7 +521,7 @@ pub fn recreate(
     }
 
     let old_jfa_secondary = water_effect.jfa_secondary_output.texture.id();
-    let jfa_secondary_desc = tex_desc(
+    let jfa_secondary_desc = WaterEffectResources::tex_desc(
         "water_effect_jfa_secondary_output",
         jfa_size,
         JFA_TEXTURE_FORMAT,
@@ -490,7 +529,7 @@ pub fn recreate(
     let jfa_secondary_output = textures.get(&device, jfa_secondary_desc);
     if jfa_secondary_output.texture.id() != old_jfa_secondary {
         water_effect.jfa_secondary_output = jfa_secondary_output;
-        water_effect.jfa_from_secondary_bind_group = water_effect.create_jfa_bind_group(
+        water_effect.jfa_from_secondary_bind_group = water_effect.create_jfa_pass_bind_group(
             &device,
             JFA_FROM_SECONDARY,
             &water_effect.jfa_secondary_output.default_view,
@@ -498,11 +537,11 @@ pub fn recreate(
     }
 
     let old_jfa_final = water_effect.jfa_final_output.texture.id();
-    let jfa_final_desc = tex_desc("water_effect_jfa_final_output", size, JFA_TEXTURE_FORMAT);
+    let jfa_final_desc = WaterEffectResources::tex_desc("water_effect_jfa_final_output", size, JFA_TEXTURE_FORMAT);
     let jfa_final_output = textures.get(&device, jfa_final_desc);
     if jfa_final_output.texture.id() != old_jfa_final {
         water_effect.jfa_final_output = jfa_final_output;
-        water_effect.ripples_src_bind_group = create_ripples_src_bind_group(
+        water_effect.ripples_src_bind_group = WaterEffectResources::create_ripples_src_bind_group(
             &device,
             &water_effect.ripples_src_bind_group_layout,
             JFA_RIPPLES_SRC,
@@ -511,16 +550,6 @@ pub fn recreate(
             &water_effect.sampler,
         );
     }
-}
 
-fn tex_desc(label: &'static str, size: Extent3d, format: TextureFormat) -> TextureDescriptor {
-    TextureDescriptor {
-        label: Some(label),
-        size,
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: TextureDimension::D2,
-        format,
-        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-    }
+    // TODO: i guess i need to recreate stuff here too?? 
 }

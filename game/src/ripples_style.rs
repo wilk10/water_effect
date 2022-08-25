@@ -17,7 +17,6 @@ pub struct RipplesStyle {
     pub water_color: Color,
     pub ripples_color: Color,
     pub distance_from_coast: f32,
-    // pub time: f32,      // ??
     pub frequency: f32, // https://itscai.us/blog/post/jfa/
     pub speed: f32,
 }
@@ -28,7 +27,6 @@ impl Default for RipplesStyle {
             water_color: Color::BLUE,
             ripples_color: Color::BLACK,
             distance_from_coast: 100.,
-            // time: 0.,
             frequency: 0.5,
             speed: 1.,
         }
@@ -49,7 +47,6 @@ impl RenderAsset for RipplesStyle {
             self.water_color,
             self.ripples_color,
             self.distance_from_coast,
-            // self.time,
             self.frequency,
             self.speed,
         )
@@ -84,8 +81,7 @@ pub struct RipplesParams {
     pub(crate) water_color: Vec4,
     pub(crate) ripples_color: Vec4,
     pub(crate) distance_from_coast: f32,
-    // pub(crate) time: f32,      // ??
-    pub(crate) frequency: f32, // https://itscai.us/blog/post/jfa/
+    pub(crate) frequency: f32,
     pub(crate) speed: f32,
 }
 
@@ -94,7 +90,6 @@ impl RipplesParams {
         water_color: Color,
         ripples_color: Color,
         distance_from_coast: f32,
-        // time: f32,
         frequency: f32,
         speed: f32,
     ) -> RipplesParams {
@@ -105,7 +100,6 @@ impl RipplesParams {
             water_color,
             ripples_color,
             distance_from_coast,
-            // time,
             frequency,
             speed,
         }
