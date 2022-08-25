@@ -18,7 +18,7 @@ use bevy::{
     },
 };
 
-use crate::{components::MainCamera, ripples_style};
+use crate::{components::RipplesCamera};
 use crate::ripples_style::RipplesStyle;
 use crate::{
     resources::{self, WaterEffectResources},
@@ -173,7 +173,7 @@ impl SpecializedRenderPipeline for WaterEffectPipeline {
 
 pub struct WaterEffectNode {
     pipeline_id: CachedRenderPipelineId,
-    camera_query: QueryState<(&'static ExtractedCamera, &'static MainCamera)>,
+    camera_query: QueryState<(&'static ExtractedCamera, &'static RipplesCamera)>,
     ripples_query: QueryState<&'static Handle<RipplesStyle>>,
 }
 
@@ -237,10 +237,9 @@ impl Node for WaterEffectNode {
         let view_ent = graph.get_input_entity(Self::IN_VIEW)?;
         graph.set_output(Self::OUT_VIEW, view_ent)?;
 
-        // TODO: ok so it panics when the MainCamera entity reaches here. It mustn't, why is that?
         dbg!(&view_ent);
 
-        let (extracted_camera, _main_camera_tag) = &self.camera_query.get_manual(world, view_ent).unwrap();
+        let (extracted_camera, _ripples_camera_tag) = &self.camera_query.get_manual(world, view_ent).unwrap();
 
         // let style = match self
         //     .ripples_query

@@ -4,7 +4,6 @@ use bevy::render::render_resource::*;
 use bevy::render::render_resource::Extent3d;
 use bevy::render::camera::RenderTarget;
 use bevy::core_pipeline::clear_color::ClearColorConfig;
-use bevy::sprite::Mesh2dHandle;
 use bevy::reflect::TypeUuid;
 use bevy::sprite::Material2d;
 use bevy::sprite::MaterialMesh2dBundle;
@@ -134,6 +133,29 @@ impl Default for MainCameraBundle {
 #[derive(Component)]
 pub struct MainCamera;
 
+#[derive(Bundle)]
+pub struct RipplesCameraBundle {
+    tag: RipplesCamera,
+    visibility: Visibility,
+    computed_visibility: ComputedVisibility,
+    #[bundle]
+    bundle: Camera2dBundle,
+}
+
+impl Default for RipplesCameraBundle {
+    fn default() -> Self {
+        Self {
+            tag: RipplesCamera,
+            visibility: Visibility::default(),
+            computed_visibility: ComputedVisibility::default(),
+            bundle: Camera2dBundle::default(),
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct RipplesCamera;
+
 
 #[derive(Bundle)]
 pub struct WaterSpritesCameraBundle {
@@ -149,8 +171,10 @@ impl WaterSpritesCameraBundle {
     #[allow(clippy::field_reassign_with_default)]
     pub fn new(water_effect_images: &WaterEffectImages) -> Self {
         let image_handle = water_effect_images.rendered_water_sprites.clone();
-        let mut color = Color::PINK;
-        color.set_a(0.);
+        // let mut color = Color::PINK;
+        // color.set_a(0.);
+
+        let color = Color::from(Vec4::ZERO);
 
         let mut camera_bundle = Camera2dBundle::default();
         camera_bundle.camera_2d = Camera2d {

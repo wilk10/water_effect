@@ -152,9 +152,9 @@ impl FromWorld for WaterEffectResources {
         let queue = world.get_resource::<RenderQueue>().unwrap().clone();
         let mut textures = world.get_resource_mut::<TextureCache>().unwrap();
 
-        let mask_output_desc = tex_desc("outline_mask_output", size, TextureFormat::R8Unorm);
+        let mask_output_desc = tex_desc("water_effect_mask_output", size, TextureFormat::R8Unorm);
         let mask_multisample_desc = TextureDescriptor {
-            label: Some("outline_mask_multisample"),
+            label: Some("water_effect_mask_multisample"),
             sample_count: 4,
             ..mask_output_desc.clone()
         };
@@ -190,7 +190,7 @@ impl FromWorld for WaterEffectResources {
         });
 
         let sampler = device.create_sampler(&SamplerDescriptor {
-            label: Some("outline_jfa_sampler"),
+            label: Some("water_effect_jfa_sampler"),
             address_mode_u: AddressMode::ClampToEdge,
             address_mode_v: AddressMode::ClampToEdge,
             address_mode_w: AddressMode::ClampToEdge,
@@ -203,7 +203,7 @@ impl FromWorld for WaterEffectResources {
 
         let jfa_init_bind_group_layout =
             device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-                label: Some("outline_jfa_init_bind_group_layout"),
+                label: Some("water_effect_jfa_init_bind_group_layout"),
                 entries: &[
                     BindGroupLayoutEntry {
                         binding: 0,
@@ -224,7 +224,7 @@ impl FromWorld for WaterEffectResources {
                 ],
             });
         let jfa_init_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("outline_jfa_init_bind_group"),
+            label: Some("water_effect_jfa_init_bind_group"),
             layout: &jfa_init_bind_group_layout,
             entries: &[
                 BindGroupEntry {
@@ -239,7 +239,7 @@ impl FromWorld for WaterEffectResources {
         });
 
         let jfa_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("outline_jfa_bind_group_layout"),
+            label: Some("water_effect_jfa_bind_group_layout"),
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,

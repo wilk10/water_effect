@@ -4,7 +4,7 @@ mod jfa;
 mod jfa_init;
 mod mask;
 mod plugin;
-mod render;
+// mod render;
 mod resources;
 mod ripples_style;
 mod water_effect;
@@ -132,13 +132,14 @@ fn setup(
     dbg!(camera_z);
 
     let main_camera_entity = commands.spawn_bundle(main_camera).id();
-    let water_camera_entity = commands.spawn_bundle(WaterSpritesCameraBundle::new(&water_effect_images)).id();
+    let water_sprites_camera_entity = commands.spawn_bundle(WaterSpritesCameraBundle::new(&water_effect_images)).id();
+    let ripples_camera_entity = commands.spawn_bundle(RipplesCameraBundle::default()).id();
     // let ripples_camera_entity = commands.spawn_bundle(RipplesCameraBundle::new(
     //     &water_effect_images,
     //     &mut ripples_styles,
     // )).id();
     // let water_effect_entity = commands.spawn_bundle(WaterEffectBundle::new(&mut meshes, &images, &water_effect_images, camera_z)).id();
-    let water_effect_entity = commands.spawn_bundle(WaterSpritesToTextureBundle::new(
+    let water_sprites_texture_entity = commands.spawn_bundle(WaterSpritesToTextureBundle::new(
         &mut meshes,
         &mut materials,
         &images,
@@ -148,11 +149,12 @@ fn setup(
     )).id();
 
     dbg!(&main_camera_entity);
-    dbg!(&water_camera_entity);
-    // dbg!(&ripples_camera_entity);
-    dbg!(&water_effect_entity);
+    dbg!(&water_sprites_camera_entity);
+    dbg!(&ripples_camera_entity);
+    dbg!(&water_sprites_texture_entity);
 
-    commands.entity(main_camera_entity).push_children(&[water_camera_entity, water_effect_entity]);
+    commands.entity(main_camera_entity).push_children(&[water_sprites_camera_entity]);
+    commands.entity(water_sprites_camera_entity).push_children(&[ripples_camera_entity, water_sprites_texture_entity]);
 
     // commands.entity(main_camera_entity).push_children(&[water_camera_entity]);
     // commands.entity(water_camera_entity).push_children(&[ripples_camera_entity]);

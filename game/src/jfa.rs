@@ -210,7 +210,7 @@ impl Node for JfaNode {
                 render_context
                     .command_encoder
                     .begin_render_pass(&RenderPassDescriptor {
-                        label: Some("outline_jfa"),
+                        label: Some("water_effect_jfa"),
                         color_attachments: &[Some(attachment)],
                         depth_stencil_attachment: None,
                     });

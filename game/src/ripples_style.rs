@@ -1,15 +1,8 @@
-use bevy::core_pipeline::clear_color::ClearColorConfig;
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
-use bevy::render::camera::RenderTarget;
 use bevy::render::render_resource::*;
-use bevy::render::view::RenderLayers;
-use bevy::sprite::Mesh2dHandle;
-use bevy::transform::components::Transform;
 use bevy::{
-    asset::{Assets, Handle},
     ecs::{system::SystemParamItem},
-    prelude::Camera2d,
     render::{
         render_asset::{PrepareAssetError, RenderAsset},
         renderer::{RenderDevice, RenderQueue},

@@ -30,7 +30,7 @@ impl FromWorld for JfaInitPipeline {
 
         let mut pipeline_cache = world.get_resource_mut::<PipelineCache>().unwrap();
         let cached = pipeline_cache.queue_render_pipeline(RenderPipelineDescriptor {
-            label: Some("outline_jfa_init_pipeline".into()),
+            label: Some("water_effect_jfa_init_pipeline".into()),
             layout: Some(vec![dims_layout, init_layout]),
             vertex: VertexState {
                 shader: shader.clone(),
@@ -121,7 +121,7 @@ impl Node for JfaInitNode {
         let render_pass = render_context
             .command_encoder
             .begin_render_pass(&RenderPassDescriptor {
-                label: Some("outline_jfa_init"),
+                label: Some("water_effect_jfa_init"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &res.jfa_primary_output.default_view,
                     resolve_target: None,

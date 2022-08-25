@@ -18,6 +18,7 @@ use bevy::sprite::Material2dPlugin;
 use bevy::render::render_graph::RenderGraph;
 use bevy::render::render_asset::RenderAssetPlugin;
 use bevy::render::render_phase::SetItemPipeline;
+use bevy::render::extract_component::ExtractComponentPlugin;
 
 use crate::components::WaterEffectImages;
 use crate::components::WaterSpritesMaterial;
@@ -34,15 +35,15 @@ use crate::jfa_init::JfaInitPipeline;
 use crate::jfa::JfaPipeline;
 use crate::water_effect::WaterEffectPipeline;
 use crate::graph;
-use crate::WaterSpritesToTexture;
-use crate::MainCamera;
+use crate::components::WaterSpritesToTexture;
+use crate::components::RipplesCamera;
 
 pub struct WaterEffectPlugin;
 
 impl Plugin for WaterEffectPlugin {
     fn build(&self, app: &mut App) {
         app
-            //.add_plugin(ExtractComponentPlugin::<WaterEffect>::default()) // TODO: is this necessary?
+            // .add_plugin(ExtractComponentPlugin::<WaterEffect>::default()) // TODO: is this necessary?
             .add_plugin(Material2dPlugin::<WaterSpritesMaterial>::default())
             .add_plugin(RenderAssetPlugin::<RipplesStyle>::default())
             .add_asset::<RipplesStyle>()
@@ -65,7 +66,7 @@ impl Plugin for WaterEffectPlugin {
             .init_resource::<WaterEffectPipeline>()
             .init_resource::<SpecializedRenderPipelines<WaterEffectPipeline>>()
             .add_system_to_stage(RenderStage::Extract, extract_ripples_styles)
-            .add_system_to_stage(RenderStage::Extract, extract_main_camera_and_add_water_mask_phase)
+            .add_system_to_stage(RenderStage::Extract, extract_ripples_camera_and_add_water_mask_phase)
             .add_system_to_stage(RenderStage::Prepare,resources::recreate)
             .add_system_to_stage(RenderStage::Queue, queue_water_mask);
 
@@ -135,11 +136,9 @@ fn extract_ripples_styles(
     commands.insert_or_spawn_batch(batches);
 }
 
-// TODO: isn't the camera already extracted? do i need to maybe do something else instead? 
-// or should i use a separate camera instead, so that it's clearer?
-fn extract_main_camera_and_add_water_mask_phase(
+fn extract_ripples_camera_and_add_water_mask_phase(
     mut commands: Commands,
-    cameras: Query<Entity, With<MainCamera>>,
+    cameras: Query<Entity, With<RipplesCamera>>,
 ) {
     for entity in cameras.iter() {
         commands
@@ -161,7 +160,7 @@ fn queue_water_mask(
         &mut RenderPhase<WaterMask>,
     )>,
 ) {
-    let draw_outline = water_mask_draw_function
+    let draw_water_mask = water_mask_draw_function
         .read()
         .get_id::<DrawWaterMask>()
         .unwrap();
@@ -197,7 +196,7 @@ fn queue_water_mask(
             mesh_mask_phase.add(WaterMask {
                 entity,
                 pipeline,
-                draw_function: draw_outline,
+                draw_function: draw_water_mask,
                 distance: mesh_z,
             });
         }

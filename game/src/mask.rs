@@ -62,6 +62,7 @@ impl CachedRenderPipelinePhaseItem for WaterMask {
 pub type DrawWaterMask = (
     SetItemPipeline,
     SetMesh2dViewBindGroup<0>,
+    // TODO: add the texture + sampler bind group, like Material2d does
     SetMesh2dBindGroup<1>,
     DrawMesh2d,
 );
@@ -91,6 +92,8 @@ impl SpecializedMeshPipeline for WaterMaskPipeline {
         layout: &Hashed<InnerMeshVertexBufferLayout, FixedState>,
     ) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
         let mut desc = self.mesh_pipeline.specialize(key, layout)?;
+
+        // TODO: the specialisation should look quite different, honestly
 
         desc.layout = Some(vec![
             self.mesh_pipeline.view_layout.clone(),
@@ -183,13 +186,13 @@ impl Node for WaterMaskNode {
                     view: &res.mask_multisample.default_view,
                     resolve_target: Some(&res.mask_output.default_view),
                     ops: Operations {
-                        load: LoadOp::Clear(Color::BLACK.into()),
+                        load: LoadOp::Clear(Color::BLACK.into()), // TODO: this will need to be quite different honestly
                         store: true,
                     },
                 })],
                 depth_stencil_attachment: None,
             });
-        let mut pass = TrackedRenderPass::new(pass_raw);
+        let mut pass = TrackedRenderPass::new(pass_raw); // i think from here downwards it stays the same
 
         let draw_functions = world
             .get_resource::<DrawFunctions<WaterMask>>()
