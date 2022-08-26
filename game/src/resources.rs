@@ -9,7 +9,9 @@ use bevy::{
     window::WindowId,
 };
 
-use crate::{jfa, JFA_TEXTURE_FORMAT, ripples_style};
+use crate::{jfa, 
+    JFA_TEXTURE_FORMAT, 
+    ripples_style};
 
 const JFA_FROM_PRIMARY: &str = "jfa_from_primary_output_bind_group";
 const JFA_FROM_SECONDARY: &str = "jfa_from_secondary_output_bind_group";

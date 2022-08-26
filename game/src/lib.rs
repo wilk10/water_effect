@@ -11,6 +11,7 @@ mod ripples_style;
 
 use bevy::prelude::*;
 use bevy::render::render_resource::*;
+use bevy::render::texture::BevyDefault;
 
 use crate::ripples_style::RipplesStyle;
 use crate::components::*;
@@ -19,17 +20,19 @@ use crate::plugin::WaterEffectPlugin;
 // TODO: most likely i can just move it inside WaterEffectResources
 
 // TODO: still don't understand this
-const JFA_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rg16Snorm;
-// TODO: still don't understand this
-const FULLSCREEN_PRIMITIVE_STATE: PrimitiveState = PrimitiveState {
-    topology: PrimitiveTopology::TriangleList,
-    strip_index_format: None,
-    front_face: FrontFace::Ccw,
-    cull_mode: Some(Face::Back),
-    unclipped_depth: false,
-    polygon_mode: PolygonMode::Fill,
-    conservative: false,
-};
+// const JFA_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rg16Snorm;
+// // TODO: still don't understand this
+// const FULLSCREEN_PRIMITIVE_STATE: PrimitiveState = PrimitiveState {
+//     topology: PrimitiveTopology::TriangleList,
+//     strip_index_format: None,
+//     front_face: FrontFace::Ccw,
+//     cull_mode: Some(Face::Back),
+//     unclipped_depth: false,
+//     polygon_mode: PolygonMode::Fill,
+//     conservative: false,
+// };
+
+const JFA_TEXTURE_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
 
 pub struct GamePlugin;
 
@@ -52,7 +55,8 @@ fn setup(
     water_effect_images: Res<WaterEffectImages>,
     mut meshes: ResMut<Assets<Mesh>>, 
     mut ripples_styles: ResMut<Assets<RipplesStyle>>,
-    mut materials: ResMut<Assets<WaterSpritesMaterial>>,
+    mut water_sprites_materials: ResMut<Assets<WaterSpritesMaterial>>,
+    // mut ripples_materials: ResMut<Assets<RipplesMaterial>>,
     // mut ripples_styles: ResMut<Assets<RipplesStyle>>,
 ) {
     commands
@@ -133,7 +137,7 @@ fn setup(
 
     let main_camera_entity = commands.spawn_bundle(main_camera).id();
     let water_sprites_camera_entity = commands.spawn_bundle(WaterSpritesCameraBundle::new(&water_effect_images)).id();
-    let ripples_camera_entity = commands.spawn_bundle(RipplesCameraBundle::new(&mut ripples_styles)).id();
+    let ripples_camera_entity = commands.spawn_bundle(RipplesCameraBundle::new(&mut ripples_styles, &water_effect_images)).id();
     // let ripples_camera_entity = commands.spawn_bundle(RipplesCameraBundle::new(
     //     &water_effect_images,
     //     &mut ripples_styles,
@@ -141,11 +145,17 @@ fn setup(
     // let water_effect_entity = commands.spawn_bundle(WaterEffectBundle::new(&mut meshes, &images, &water_effect_images, camera_z)).id();
     let water_sprites_texture_entity = commands.spawn_bundle(WaterSpritesToTextureBundle::new(
         &mut meshes,
-        &mut materials,
+        &mut water_sprites_materials,
         &images,
         &water_effect_images,
         // camera_z,
         // &mut ripples_styles,
+    )).id();
+    let ripples_texture_entity = commands.spawn_bundle(RipplesTextureBundle::new(
+        // &mut meshes,
+        // &mut ripples_materials,
+        &images,
+        &water_effect_images
     )).id();
 
     println!("\n=============================================");
@@ -157,6 +167,7 @@ fn setup(
     dbg!(&water_sprites_camera_entity);
     dbg!(&ripples_camera_entity);
     dbg!(&water_sprites_texture_entity);
+    dbg!(&ripples_texture_entity);
     // dbg!(camera_z);
 
     // commands.entity(main_camera_entity).push_children(&[water_sprites_camera_entity]);

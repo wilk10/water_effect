@@ -12,10 +12,13 @@ use bevy::{
         renderer::RenderContext,
     },
 };
+use bevy::render::render_resource::TextureFormat;
+use bevy::render::texture::BevyDefault;
+use bevy::render::render_resource::PrimitiveState;
 
 use crate::{
     resources::WaterEffectResources, ripples_style::RipplesStyle,
-    FULLSCREEN_PRIMITIVE_STATE, JFA_TEXTURE_FORMAT,
+    //FULLSCREEN_PRIMITIVE_STATE, JFA_TEXTURE_FORMAT,
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ShaderType)]
@@ -70,12 +73,12 @@ impl FromWorld for JfaPipeline {
                 shader_defs: vec![],
                 entry_point: "fragment".into(),
                 targets: vec![Some(ColorTargetState {
-                    format: JFA_TEXTURE_FORMAT,
+                    format: TextureFormat::bevy_default(),//JFA_TEXTURE_FORMAT, // TODO: removed for debugging
                     blend: None,
                     write_mask: ColorWrites::ALL,
                 })],
             }),
-            primitive: FULLSCREEN_PRIMITIVE_STATE,
+            primitive: PrimitiveState::default(), //FULLSCREEN_PRIMITIVE_STATE, // TODO: removed for debugging
             depth_stencil: None,
             multisample: MultisampleState::default(),
         });

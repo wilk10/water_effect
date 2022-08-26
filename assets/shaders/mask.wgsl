@@ -10,9 +10,11 @@ struct FragmentIn {
 };
 
 @fragment
-fn fragment(in: FragmentIn) -> @location(0) vec4<f32> {
+fn fragment(
+    #import bevy_sprite::mesh2d_vertex_output
+) -> @location(0) vec4<f32> {
 
-    var input_colour: vec4<f32> = textureSample(water_texture, water_sampler, in.uv);
+    var input_colour: vec4<f32> = textureSample(water_texture, water_sampler, uv);
 
     // NOTE: it's a bit dumb, but basically it flips the result from the water_sprites shader
     // so that the water is the one that will have the SDFs calculated for, instead of being the outline of the mesh,
@@ -24,12 +26,14 @@ fn fragment(in: FragmentIn) -> @location(0) vec4<f32> {
     // It would also allow me to skip the stencil test that Bevy JFA has (in the original MeshMask node), 
     // because i know already the fragments that i want the SDFs calculated for
 
-    if input_colour.a > 0. {
-        input_colour = vec4<f32>(0., 0., 0., 0.);
-    } else {
-        input_colour = vec4<f32>(1., 1., 1., 1.);
-    }
 
-    var result: vec4<f32> = input_colour;
+    // TODO: temporarily removed !!!!!!
+    // if input_colour.a > 0. {
+    //     input_colour = vec4<f32>(0., 0., 0., 0.);
+    // } else {
+    //     input_colour = vec4<f32>(1., 1., 1., 1.);
+    // }
+
+    var result: vec4<f32> = vec4<f32>(input_colour.r, 0., input_colour.b, input_colour.a);;
     return result;
 }

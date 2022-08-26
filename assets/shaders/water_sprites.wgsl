@@ -43,11 +43,15 @@ fn fragment(
 
     var input_colour: vec4<f32> = textureSample(water_texture, water_sampler, uv);
 
-    if input_colour.a > 0. {
-        input_colour = vec4<f32>(input_colour, 1.);
-    } else {
-        input_colour = vec4<f32>(0., 0., 0., 0.);
-    }
-    var result: vec4<f32> = input_colour;
+
+    // TODO: temporarily removed !!!!!!
+
+    // if input_colour.a > 0. {
+    //     input_colour = vec4<f32>(input_colour, 1.);
+    // } else {
+    //     input_colour = vec4<f32>(0., 0., 0., 0.);
+    // }
+
+    var result: vec4<f32> = vec4<f32>(1., input_colour.g, input_colour.b, input_colour.a);
     return result;
 }

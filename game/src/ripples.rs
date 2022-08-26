@@ -15,7 +15,7 @@ use crate::{components::RipplesCamera};
 use crate::ripples_style::RipplesStyle;
 use crate::{
     resources::{self, WaterEffectResources},
-    FULLSCREEN_PRIMITIVE_STATE,
+    //FULLSCREEN_PRIMITIVE_STATE,
 };
 
 #[derive(Clone, Debug)]
@@ -118,7 +118,7 @@ impl SpecializedRenderPipeline for RipplesPipeline {
                     write_mask: ColorWrites::ALL,
                 })],
             }),
-            primitive: FULLSCREEN_PRIMITIVE_STATE,
+            primitive: PrimitiveState::default(),// FULLSCREEN_PRIMITIVE_STATE, // TODO: removed for debugging
             depth_stencil: None,
             multisample: MultisampleState {
                 count: 1,

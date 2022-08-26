@@ -12,8 +12,12 @@ use bevy::{
         renderer::RenderContext,
     },
 };
+use bevy::render::render_resource::TextureFormat;
+use bevy::render::texture::BevyDefault;
 
-use crate::{resources::WaterEffectResources, JFA_TEXTURE_FORMAT};
+use crate::{resources::WaterEffectResources, 
+    //JFA_TEXTURE_FORMAT
+};
 
 pub struct JfaInitPipeline {
     cached: CachedRenderPipelineId,
@@ -54,7 +58,7 @@ impl FromWorld for JfaInitPipeline {
                 shader_defs: vec![],
                 entry_point: "fragment".into(),
                 targets: vec![Some(ColorTargetState {
-                    format: JFA_TEXTURE_FORMAT,
+                    format: TextureFormat::bevy_default(),// JFA_TEXTURE_FORMAT, // TODO: removed for debugging
                     blend: None,
                     write_mask: ColorWrites::ALL,
                 })],

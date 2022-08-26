@@ -11,13 +11,15 @@ use bevy::render::extract_resource::ExtractResource;
 use bevy::ecs::query::QueryItem;
 use bevy::render::extract_component::ExtractComponent;
 use bevy::ecs::system::lifetimeless::Read;
+use bevy::render::texture::Volume;
+use bevy::render::texture::TextureFormatPixelInfo;
 
 use crate::ripples_style::RipplesStyle;
 
 #[derive(Clone)]
 pub struct WaterEffectImages {
     pub rendered_water_sprites: Handle<Image>,
-    pub rendered_ripples: Handle<Image>, // TODO: need to remove this
+    pub rendered_ripples: Handle<Image>,
 }
 
 impl WaterEffectImages {
@@ -62,7 +64,13 @@ impl WaterEffectImages {
             ..Default::default()
         };
         // NOTE: fill image.data with zeroes
-        image.resize(size);
+        // image.resize(size);
+
+        // TODO: ideally i just refill with 0s, but this below is for debugging
+        image.data.resize(
+            size.volume() * image.texture_descriptor.format.pixel_size(),
+            100,
+        );
 
         image
     }
@@ -119,7 +127,7 @@ pub struct MainCameraBundle {
     // visibility: Visibility,
     // computed_visibility: ComputedVisibility,
     #[bundle]
-    bundle: Camera2dBundle,
+    camera_bundle: Camera2dBundle,
 }
 
 // impl MainCameraBundle {
@@ -130,11 +138,15 @@ pub struct MainCameraBundle {
 
 impl Default for MainCameraBundle {
     fn default() -> Self {
+        let mut camera_bundle = Camera2dBundle::default();
+        camera_bundle.camera_2d = Camera2d {
+            clear_color: ClearColorConfig::None,
+        };
         Self {
             main_camera: MainCamera,
             // visibility: Visibility::default(),
             // computed_visibility: ComputedVisibility::default(),
-            bundle: Camera2dBundle::default(),
+            camera_bundle,
         }
     }
 }
@@ -154,15 +166,16 @@ pub struct RipplesCameraBundle {
 }
 
 impl RipplesCameraBundle {
-    pub fn new(ripples_styles: &mut Assets<RipplesStyle>) -> Self {
+    pub fn new(ripples_styles: &mut Assets<RipplesStyle>, water_effect_images: &WaterEffectImages) -> Self {
+        let image_handle = water_effect_images.rendered_ripples.clone();
+
         let mut camera_bundle = Camera2dBundle::default();
         camera_bundle.camera_2d = Camera2d {
-            clear_color: ClearColorConfig::None, // NOTE: i think this is correct...? not sure
+            clear_color: ClearColorConfig::None,
         };
         camera_bundle.camera = Camera {
-            priority: 1,
-            // TODO: this currently renders to the primary window, but if i want more control,
-            // it can render to an Image, if i want. I don't know, let's see
+            priority: -1,
+            target: RenderTarget::Image(image_handle),
             ..Default::default()
         };
         camera_bundle.transform = Transform::from_translation(Vec3::ZERO);
@@ -216,7 +229,7 @@ impl WaterSpritesCameraBundle {
             clear_color: ClearColorConfig::Custom(color),
         };
         camera_bundle.camera = Camera {
-            priority: -1,
+            priority: -2,
             target: RenderTarget::Image(image_handle),
             ..Default::default()
         };
@@ -347,9 +360,6 @@ impl ExtractComponent for WaterSpritesToTexture {
     }
 }
 
-
-/// WATER EFFECT
-
 #[derive(Debug, Clone, TypeUuid, AsBindGroup)]
 #[uuid = "d8f3e2a1-ee4e-425c-90c1-125fb82eac1f"]
 pub struct WaterSpritesMaterial {
@@ -371,6 +381,95 @@ impl Material2d for WaterSpritesMaterial {
         "shaders/water_sprites.wgsl".into()
     }
 }
+
+#[derive(Default, Bundle)]
+pub struct RipplesTextureBundle {
+    tag: RipplesTexture,
+    #[bundle]
+    // pub material_2d_bundle: MaterialMesh2dBundle<RipplesMaterial>,
+    sprite_bundle: SpriteBundle,
+}
+
+impl RipplesTextureBundle {
+    const Z: f32 = 1.0;
+
+    pub fn new(
+        // meshes: &mut Assets<Mesh>, 
+        // materials: &mut Assets<RipplesMaterial>, 
+        images: &Assets<Image>, 
+        water_effect_images: &WaterEffectImages,
+    ) -> Self {
+        // let ripples_material = RipplesMaterial::new(&water_effect_images.rendered_ripples);
+
+        let image = images.get(&water_effect_images.rendered_ripples).unwrap();
+        let mesh_size = UVec2::new(
+            image.texture_descriptor.size.width,
+            image.texture_descriptor.size.height,
+        );
+        // let quad = shape::Quad::new(mesh_size.as_vec2());
+
+        // let translation = Vec3::new(0., 0., -camera_z + Self::Z);
+        let translation = Vec3::new(0., 0., Self::Z);
+
+        Self {
+            tag: RipplesTexture,
+            // material_2d_bundle: MaterialMesh2dBundle { 
+            //     mesh: meshes.add(Mesh::from(quad)).into(), 
+            //     material: materials.add(ripples_material), 
+            //     transform: Transform::from_translation(translation), 
+            //     ..Default::default()
+            // }
+            sprite_bundle: SpriteBundle {
+                sprite: Sprite {
+                    custom_size: Some(mesh_size.as_vec2()),
+                    ..Default::default()
+                 },
+                texture: water_effect_images.rendered_ripples.clone(),
+                transform: Transform::from_translation(translation),
+                ..Default::default()
+            }
+        }
+    }
+}
+
+#[derive(Debug, Default, Component)]
+pub struct RipplesTexture;
+
+// impl ExtractComponent for WaterSpritesToTexture {
+//     type Query = Read<WaterSpritesToTexture>;
+
+//     type Filter = ();
+
+//     fn extract_component(_: QueryItem<Self::Query>) -> Self {
+//         WaterSpritesToTexture
+//     }
+// }
+
+// #[derive(Debug, Clone, TypeUuid, AsBindGroup)]
+// #[uuid = "d8f3e2a1-ee4e-425c-90c1-125fb82eac1f"]
+// pub struct RipplesMaterial {
+//     #[texture(0)]
+//     #[sampler(1)]
+//     pub image_handle: Handle<Image>,
+// }
+
+// impl RipplesMaterial {
+//     pub fn new(image_handle: &Handle<Image>) -> Self {
+//         Self {
+//             image_handle: image_handle.clone(),
+//         }
+//     }
+// }
+
+// #[derive(Debug, Clone, TypeUuid, AsBindGroup)]
+// #[uuid = "b3b16ccc-96ef-43f6-a7b7-33936aeb6be9"]
+// pub struct RipplesMaterial;
+
+// impl Material2d for RipplesMaterial {
+//     fn fragment_shader() -> ShaderRef {
+//         "shaders/ripples.wgsl".into()
+//     }
+// }
 
 #[derive(Default)]
 pub struct ExtractedTime {

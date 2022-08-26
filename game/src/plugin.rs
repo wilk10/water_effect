@@ -36,6 +36,7 @@ use crate::graph;
 use crate::components::WaterSpritesToTexture;
 use crate::components::RipplesCamera;
 use crate::components::ExtractedTime;
+// use crate::components::RipplesMaterial;
 
 const FULLSCREEN_SHADER_HANDLE: HandleUntyped =
     HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 12099561278220359682);
@@ -65,6 +66,7 @@ impl Plugin for WaterEffectPlugin {
             .add_plugin(ExtractComponentPlugin::<WaterSpritesToTexture>::default()) // TODO: is this necessary?
             .add_plugin(ExtractResourcePlugin::<ExtractedTime>::default())
             .add_plugin(Material2dPlugin::<WaterSpritesMaterial>::default())
+            // .add_plugin(Material2dPlugin::<RipplesMaterial>::default())
             .add_plugin(RenderAssetPlugin::<RipplesStyle>::default())
             .add_asset::<RipplesStyle>()
             .init_resource::<WaterEffectImages>();

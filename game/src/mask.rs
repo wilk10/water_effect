@@ -27,6 +27,8 @@ use bevy::sprite::RenderMaterials2d;
 use bevy::ecs::system::lifetimeless::SQuery;
 use bevy::ecs::system::lifetimeless::Read;
 use bevy::render::renderer::RenderDevice;
+use bevy::render::texture::BevyDefault;
+
 // use bevy::render::texture::BevyDefault;
 
 use crate::components::WaterSpritesMaterial;
@@ -89,6 +91,7 @@ impl<const I: usize> EntityRenderCommand for SetWaterTextureViewBindGroup<I> {
     ) -> RenderCommandResult {
         let material2d_handle = query.get(item).unwrap();
 
+        println!("============!!!!!!!!!!!!!!==========!!!!!!=========!!!!!!!=====!!!");
         dbg!(&material2d_handle);
 
         let material2d = materials.into_inner().get(material2d_handle).unwrap();
@@ -96,6 +99,9 @@ impl<const I: usize> EntityRenderCommand for SetWaterTextureViewBindGroup<I> {
         dbg!(&material2d.key);
 
         pass.set_bind_group(I, &material2d.bind_group, &[]);
+
+        println!("============!!!!!!!!!!!!!!==========!!!!!!=========!!!!!!!=====!!!");
+
         RenderCommandResult::Success
     }
 }
@@ -132,18 +138,18 @@ impl SpecializedMeshPipeline for WaterMaskPipeline {
         key: Self::Key,
         layout: &Hashed<InnerMeshVertexBufferLayout, FixedState>,
     ) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
-        // let blend = BlendState {
-        //     color: BlendComponent {
-        //         src_factor: BlendFactor::SrcAlpha,
-        //         dst_factor: BlendFactor::OneMinusSrcAlpha,
-        //         operation: BlendOperation::Add,
-        //     },
-        //     alpha: BlendComponent {
-        //         src_factor: BlendFactor::One,
-        //         dst_factor: BlendFactor::Zero,
-        //         operation: BlendOperation::Add,
-        //     },
-        // };
+        let blend = BlendState {
+            color: BlendComponent {
+                src_factor: BlendFactor::SrcAlpha,
+                dst_factor: BlendFactor::OneMinusSrcAlpha,
+                operation: BlendOperation::Add,
+            },
+            alpha: BlendComponent {
+                src_factor: BlendFactor::One,
+                dst_factor: BlendFactor::Zero,
+                operation: BlendOperation::Add,
+            },
+        };
 
         let mut desc = self.mesh_pipeline.specialize(key, layout)?;
 
@@ -159,16 +165,20 @@ impl SpecializedMeshPipeline for WaterMaskPipeline {
             shader: self.shader.clone(),
             shader_defs: vec![],
             entry_point: "fragment".into(),
-            targets: vec![Some(ColorTargetState {
-                format: TextureFormat::R8Unorm,
-                blend: None,
-                write_mask: ColorWrites::ALL,
-            })],
+            // TODO: removed for debugging
+            //
             // targets: vec![Some(ColorTargetState {
-            //     format: TextureFormat::bevy_default(), // TODO: this hardcoding stuff is probably not good
-            //     blend: Some(blend),
+            //     format: TextureFormat::R8Unorm,
+            //     blend: None,
             //     write_mask: ColorWrites::ALL,
             // })],
+            
+            // TODO: added for debugging
+            targets: vec![Some(ColorTargetState {
+                format: TextureFormat::bevy_default(),
+                blend: Some(blend),
+                write_mask: ColorWrites::ALL,
+            })],
         });
         desc.depth_stencil = None;
 
@@ -248,7 +258,7 @@ impl Node for WaterMaskNode {
                 label: Some("water_effect_stencil_render_pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &res.mask_multisample.default_view,
-                    resolve_target: Some(&res.mask_output.default_view),
+                    resolve_target: None,// Some(&res.mask_output.default_view), // TODO: removed for debugging, probably this is the one giving the error right now
                     ops: Operations {
                         load: LoadOp::Load,
                         store: true,
