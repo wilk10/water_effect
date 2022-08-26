@@ -27,6 +27,7 @@ use bevy::sprite::RenderMaterials2d;
 use bevy::ecs::system::lifetimeless::SQuery;
 use bevy::ecs::system::lifetimeless::Read;
 use bevy::render::renderer::RenderDevice;
+// use bevy::render::texture::BevyDefault;
 
 use crate::components::WaterSpritesMaterial;
 use crate::{resources::WaterEffectResources};
@@ -112,12 +113,12 @@ impl FromWorld for WaterMaskPipeline {
         let asset_server = world.resource::<AssetServer>();
         let shader = asset_server.load("shaders/mask.wgsl");
 
-        dbg!(&shader);
+        // dbg!(&shader);
 
         let render_device = world.resource::<RenderDevice>();
         let texture_view_bind_group_layout = WaterSpritesMaterial::bind_group_layout(render_device);
 
-        dbg!(&texture_view_bind_group_layout);
+        // dbg!(&texture_view_bind_group_layout);
 
         WaterMaskPipeline { mesh_pipeline, shader, texture_view_bind_group_layout }
     }
@@ -131,6 +132,19 @@ impl SpecializedMeshPipeline for WaterMaskPipeline {
         key: Self::Key,
         layout: &Hashed<InnerMeshVertexBufferLayout, FixedState>,
     ) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
+        // let blend = BlendState {
+        //     color: BlendComponent {
+        //         src_factor: BlendFactor::SrcAlpha,
+        //         dst_factor: BlendFactor::OneMinusSrcAlpha,
+        //         operation: BlendOperation::Add,
+        //     },
+        //     alpha: BlendComponent {
+        //         src_factor: BlendFactor::One,
+        //         dst_factor: BlendFactor::Zero,
+        //         operation: BlendOperation::Add,
+        //     },
+        // };
+
         let mut desc = self.mesh_pipeline.specialize(key, layout)?;
 
         desc.layout = Some(vec![
@@ -139,7 +153,7 @@ impl SpecializedMeshPipeline for WaterMaskPipeline {
             self.mesh_pipeline.mesh_layout.clone(),
         ]);
 
-        desc.vertex.shader = self.shader.clone();
+        // desc.vertex.shader = self.shader.clone();
 
         desc.fragment = Some(FragmentState {
             shader: self.shader.clone(),
@@ -150,6 +164,11 @@ impl SpecializedMeshPipeline for WaterMaskPipeline {
                 blend: None,
                 write_mask: ColorWrites::ALL,
             })],
+            // targets: vec![Some(ColorTargetState {
+            //     format: TextureFormat::bevy_default(), // TODO: this hardcoding stuff is probably not good
+            //     blend: Some(blend),
+            //     write_mask: ColorWrites::ALL,
+            // })],
         });
         desc.depth_stencil = None;
 
@@ -161,7 +180,7 @@ impl SpecializedMeshPipeline for WaterMaskPipeline {
 
         desc.label = Some("water_mask_stencil_pipeline".into());
 
-        dbg!(&desc);
+        // dbg!(&desc);
 
         Ok(desc)
     }
@@ -238,7 +257,7 @@ impl Node for WaterMaskNode {
                 depth_stencil_attachment: None,
             });
 
-        dbg!(&pass_raw);
+        // dbg!(&pass_raw);
 
         let mut pass = TrackedRenderPass::new(pass_raw);
 

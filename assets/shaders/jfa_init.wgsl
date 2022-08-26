@@ -1,5 +1,5 @@
-#import outline::fullscreen
-#import outline::dimensions
+#import water_effect::fullscreen
+#import water_effect::dimensions
 
 // Jump flood initialization pass.
 @group(1) @binding(0)

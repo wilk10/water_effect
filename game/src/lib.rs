@@ -78,10 +78,10 @@ fn setup(
         })
         .insert(RotationSpeed(0.08))
         // .insert(WaterSprite)
-        .insert(WaterEffectImages::render_layers())
+        .insert(WaterEffectImages::water_sprites_render_layer())
         .id();
 
-    dbg!(&red_sprite_entity);
+    
 
     let green_sprite_entity = commands
         .spawn_bundle(SpriteBundle {
@@ -95,10 +95,10 @@ fn setup(
         })
         .insert(RotationSpeed(0.06))
         // .insert(WaterSprite)
-        .insert(WaterEffectImages::render_layers())
+        .insert(WaterEffectImages::water_sprites_render_layer())
         .id();
 
-    dbg!(&green_sprite_entity);
+    
 
     let blue_sprite_entity = commands
         .spawn_bundle(SpriteBundle {
@@ -112,10 +112,10 @@ fn setup(
         })
         .insert(RotationSpeed(0.04))
         // .insert(WaterSprite)
-        .insert(WaterEffectImages::render_layers())
+        .insert(WaterEffectImages::water_sprites_render_layer())
         .id();
 
-    dbg!(&blue_sprite_entity);
+   
 
     commands
         .spawn_bundle(SpriteBundle {
@@ -129,11 +129,11 @@ fn setup(
         }); 
 
     let main_camera = MainCameraBundle::default();
-    let camera_z = main_camera.z();
+    // let camera_z = main_camera.z();
 
     let main_camera_entity = commands.spawn_bundle(main_camera).id();
     let water_sprites_camera_entity = commands.spawn_bundle(WaterSpritesCameraBundle::new(&water_effect_images)).id();
-    let ripples_camera_entity = commands.spawn_bundle(RipplesCameraBundle::default()).id();
+    let ripples_camera_entity = commands.spawn_bundle(RipplesCameraBundle::new(&mut ripples_styles)).id();
     // let ripples_camera_entity = commands.spawn_bundle(RipplesCameraBundle::new(
     //     &water_effect_images,
     //     &mut ripples_styles,
@@ -144,48 +144,24 @@ fn setup(
         &mut materials,
         &images,
         &water_effect_images,
-        camera_z,
-        &mut ripples_styles,
+        // camera_z,
+        // &mut ripples_styles,
     )).id();
 
     println!("\n=============================================");
+    dbg!(&red_sprite_entity);
+    dbg!(&green_sprite_entity);
+    dbg!(&blue_sprite_entity);
+    
     dbg!(&main_camera_entity);
     dbg!(&water_sprites_camera_entity);
     dbg!(&ripples_camera_entity);
     dbg!(&water_sprites_texture_entity);
-    dbg!(camera_z);
+    // dbg!(camera_z);
 
-    commands.entity(main_camera_entity).push_children(&[water_sprites_camera_entity]);
-    commands.entity(water_sprites_camera_entity).push_children(&[ripples_camera_entity, water_sprites_texture_entity]);
+    // commands.entity(main_camera_entity).push_children(&[water_sprites_camera_entity]);
+    // commands.entity(water_sprites_camera_entity).push_children(&[ripples_camera_entity, water_sprites_texture_entity]);
 
-    // commands.entity(main_camera_entity).push_children(&[water_camera_entity]);
-    // commands.entity(water_camera_entity).push_children(&[ripples_camera_entity]);
-    // commands.entity(main_camera_entity).push_children(&[ripples_camera_entity]);
-    // commands.entity(ripples_camera_entity).push_children(&[water_effect_entity]);
-
-    // commands
-    //     .entity(main_camera_entity)
-    //     .with_children(|parent| {
-    //         parent
-    //             .spawn_bundle(WaterCameraBundle::new(&water_effect_images))
-    //             .with_children(|parent| {
-    //                 parent
-    //                     .spawn_bundle(RipplesCameraBundle::new(
-    //                         &water_effect_images,
-    //                         &mut ripples_styles,
-    //                     ))
-    //                     .with_children(|parent| {
-    //                         parent.spawn_bundle(WaterEffectBundle::default());
-    //                         // .spawn_bundle(MaterialMesh2dBundle {
-    //                         //     mesh: meshes.add(Mesh::from(quad)).into(),
-    //                         //     material: materials.add(water_effect),
-    //                         //     transform: Transform::from_translation(mesh_translation),
-    //                         //     ..Default::default()
-    //                         // })
-    //                         // .insert_bundle(WaterEffectBundle::default());
-    //                     });
-    //             });
-    //     });
 }
 
 fn rotate_sprites(time: Res<Time>, mut query: Query<(&mut Transform, &RotationSpeed)>) {

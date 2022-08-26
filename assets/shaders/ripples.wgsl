@@ -1,37 +1,37 @@
-#import outline::fullscreen
-#import outline::dimensions
+#import water_effect::fullscreen
+#import water_effect::dimensions
 
 struct Params {
-    water_color: vec4<f32>;
-    ripples_color: vec4<f32>;
+    water_color: vec4<f32>,
+    ripples_color: vec4<f32>,
     distance_from_coast: f32,
     frequency: f32, // https://itscai.us/blog/post/jfa/
-    speed: f32
+    speed: f32,
 };
 
 struct Time {
     time_since_startup: f32,
-}
-
-[[group(1), binding(0)]]
-var jfa_buffer: texture_2d<f32>;
-[[group(1), binding(1)]]
-var mask_buffer: texture_2d<f32>;
-[[group(1), binding(2)]]
-var nearest_sampler: sampler;
-
-[[group(2), binding(0)]]
-var<uniform> params: Params;
-
-[[group(3), binding(0)]]
-var time: Time;
-
-struct FragmentIn {
-    [[location(0)]] texcoord: vec2<f32>;
 };
 
-[[stage(fragment)]]
-fn fragment(in: FragmentIn) -> [[location(0)]] vec4<f32> {
+@group(1)  @binding(0)
+var jfa_buffer: texture_2d<f32>;
+@group(1) @binding(1)
+var mask_buffer: texture_2d<f32>;
+@group(1) @binding(2)
+var nearest_sampler: sampler;
+
+@group(2) @binding(0)
+var<uniform> params: Params;
+
+@group(3) @binding(0)
+var<uniform> time: Time;
+
+struct FragmentIn {
+    @location(0) texcoord: vec2<f32>,
+};
+
+@fragment
+fn fragment(in: FragmentIn) -> @location(0) vec4<f32> {
     let fb_jfa_pos = textureSample(jfa_buffer, nearest_sampler, in.texcoord).xy;
     let fb_to_pix = vec2<f32>(dims.width, dims.height);
 

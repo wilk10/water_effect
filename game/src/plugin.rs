@@ -18,6 +18,9 @@ use bevy::render::render_phase::SetItemPipeline;
 use bevy::render::extract_component::ExtractComponentPlugin;
 use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::renderer::RenderQueue;
+use bevy::render::Extract;
+use bevy::reflect::TypeUuid;
+use bevy::asset::load_internal_asset;
 
 use crate::components::WaterEffectImages;
 use crate::components::WaterSpritesMaterial;
@@ -32,21 +35,34 @@ use crate::ripples::RipplesPipeline;
 use crate::graph;
 use crate::components::WaterSpritesToTexture;
 use crate::components::RipplesCamera;
-use crate::components::TimeBuffer;
 use crate::components::ExtractedTime;
 
+const FULLSCREEN_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 12099561278220359682);
+const DIMENSIONS_SHADER_HANDLE: HandleUntyped =
+    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 11721531257850828867);
 
 pub struct WaterEffectPlugin;
 
 impl Plugin for WaterEffectPlugin {
     fn build(&self, app: &mut App) {
 
-        // TODO: probably i can remove this, and in `prepare_time` system i can query WaterEffectResources instead
-        let water_effect_resources = resources::WaterEffectResources::from_world(&mut app.world);
-        let time_buffer = TimeBuffer::new(&water_effect_resources.ripples_time_uniform_buffer);
+        load_internal_asset!(
+            app,
+            FULLSCREEN_SHADER_HANDLE,
+            "internal_shaders/fullscreen.wgsl",
+            Shader::from_wgsl
+        );
+        load_internal_asset!(
+            app,
+            DIMENSIONS_SHADER_HANDLE,
+            "internal_shaders/dimensions.wgsl",
+            Shader::from_wgsl
+        );
 
         app
-            .add_plugin(ExtractComponentPlugin::<RipplesCamera>::default()) // TODO: is this necessary?
+            .add_plugin(ExtractComponentPlugin::<RipplesCamera>::default())
+            .add_plugin(ExtractComponentPlugin::<WaterSpritesToTexture>::default()) // TODO: is this necessary?
             .add_plugin(ExtractResourcePlugin::<ExtractedTime>::default())
             .add_plugin(Material2dPlugin::<WaterSpritesMaterial>::default())
             .add_plugin(RenderAssetPlugin::<RipplesStyle>::default())
@@ -62,9 +78,7 @@ impl Plugin for WaterEffectPlugin {
             .init_resource::<DrawFunctions<WaterMask>>()
             .add_render_command::<WaterMask, SetItemPipeline>()
             .add_render_command::<WaterMask, DrawWaterMask>()
-            // .init_resource::<resources::WaterEffectResources>()
-            .insert_resource(water_effect_resources)
-            .insert_resource(time_buffer)
+            .init_resource::<resources::WaterEffectResources>()
             .init_resource::<WaterMaskPipeline>()
             .init_resource::<SpecializedMeshPipelines<WaterMaskPipeline>>()
             .init_resource::<JfaInitPipeline>()
@@ -103,11 +117,11 @@ impl Plugin for WaterEffectPlugin {
 fn extract_ripples_styles(
     mut commands: Commands,
     mut previous_ripples_styles_len: Local<usize>,
-    water_texture: Query<(Entity, &Handle<RipplesStyle>), With<WaterSpritesToTexture>>,
+    ripples_camera: Extract<Query<(Entity, &Handle<RipplesStyle>), With<RipplesCamera>>>,
 ) {
     let mut batches = Vec::with_capacity(*previous_ripples_styles_len);
     batches.extend(
-        water_texture
+        ripples_camera
             .iter()
             .map(|(entity, style)| (entity, (style.clone(),))),
     );
@@ -120,7 +134,7 @@ fn extract_ripples_styles(
 
 fn extract_ripples_camera_and_add_water_mask_phase(
     mut commands: Commands,
-    cameras: Query<Entity, With<RipplesCamera>>,
+    cameras: Extract<Query<Entity, With<RipplesCamera>>>,
 ) {
     for entity in cameras.iter() {
 
@@ -134,11 +148,11 @@ fn extract_ripples_camera_and_add_water_mask_phase(
 
 fn prepare_time(
     time: Res<ExtractedTime>,
-    time_buffer: Res<TimeBuffer>,
+    water_effect_resources: Res<resources::WaterEffectResources>,
     render_queue: Res<RenderQueue>,
 ) {
     render_queue.write_buffer(
-        &time_buffer.buffer,
+        &water_effect_resources.ripples_time_uniform_buffer,
         0,
         bevy::core::cast_slice(&[time.seconds_since_startup]),
     );
@@ -162,10 +176,18 @@ fn queue_water_mask(
         .get_id::<DrawWaterMask>()
         .unwrap();
 
-    for (_view, visible_entities, mut mesh_mask_phase) in views.iter_mut() {
+    for (view, visible_entities, mut mesh_mask_phase) in views.iter_mut() {
 
-        // dbg!(&view.width);
-        // dbg!(&view.height);
+        // TODO: this is 1600 and 900 and they are a bit weird honestly, why?
+        dbg!(&view.width);
+        dbg!(&view.height);
+
+        // TODO: i solved the issue with seeing other cameras, it was because i added Visibility and Computed Visibility
+        // to be able to parent them to each other, but that screwed up the rest massively.
+        //
+        // here though i'd like to not see the other sprites, cause i'll have thousands in the game, but only see
+        // the one with WaterSpritesToTexture. RenderLayers didn't fix it, but it might be because i'm extracting
+        // the style manually maybe??
         dbg!(&visible_entities);
 
         // let view_matrix = view.transform.compute_matrix();
@@ -173,13 +195,12 @@ fn queue_water_mask(
 
         for visible_entity in visible_entities.entities.iter().copied() {
 
-            dbg!(&visible_entity);
-
             let (entity, mesh2d_handle, mesh2d_uniform) = match water_sprites_mesh.get(visible_entity) {
                 Ok(m) => m,
                 Err(_) => continue,
             };
 
+            dbg!(&visible_entity);
             dbg!(&mesh2d_handle);
 
             let mesh = match render_meshes.get(&mesh2d_handle.0) {

@@ -21,11 +21,16 @@ pub struct WaterEffectImages {
 }
 
 impl WaterEffectImages {
-    const RENDER_LAYER: u8 = 1;
+    const WATER_SPRITES_RENDER_LAYER: u8 = 1;
+    // const RENDERED_TEXTURE_RENDER_LAYER: u8 = 2;
 
-    pub fn render_layers() -> RenderLayers {
-        RenderLayers::layer(Self::RENDER_LAYER)
+    pub fn water_sprites_render_layer() -> RenderLayers {
+        RenderLayers::layer(Self::WATER_SPRITES_RENDER_LAYER)
     }
+
+    // pub fn rendered_texture_render_layer() -> RenderLayers {
+    //     RenderLayers::layer(Self::RENDERED_TEXTURE_RENDER_LAYER)
+    // }
 
     fn image_size(window: &Window) -> Extent3d {
         let extra_margin = Vec2::ZERO;
@@ -111,24 +116,24 @@ impl FromWorld for WaterEffectImages {
 #[derive(Bundle)]
 pub struct MainCameraBundle {
     main_camera: MainCamera,
-    visibility: Visibility,
-    computed_visibility: ComputedVisibility,
+    // visibility: Visibility,
+    // computed_visibility: ComputedVisibility,
     #[bundle]
     bundle: Camera2dBundle,
 }
 
-impl MainCameraBundle {
-    pub fn z(&self) -> f32 {
-        self.bundle.transform.translation.z
-    }
-}
+// impl MainCameraBundle {
+//     pub fn z(&self) -> f32 {
+//         self.bundle.transform.translation.z
+//     }
+// }
 
 impl Default for MainCameraBundle {
     fn default() -> Self {
         Self {
             main_camera: MainCamera,
-            visibility: Visibility::default(),
-            computed_visibility: ComputedVisibility::default(),
+            // visibility: Visibility::default(),
+            // computed_visibility: ComputedVisibility::default(),
             bundle: Camera2dBundle::default(),
         }
     }
@@ -140,21 +145,22 @@ pub struct MainCamera;
 #[derive(Bundle)]
 pub struct RipplesCameraBundle {
     tag: RipplesCamera,
-    visibility: Visibility,
-    computed_visibility: ComputedVisibility,
+    styles_handle: Handle<RipplesStyle>,
+    // render_layers: RenderLayers,
+    // visibility: Visibility,
+    // computed_visibility: ComputedVisibility,
     #[bundle]
     camera_bundle: Camera2dBundle,
 }
 
-impl Default for RipplesCameraBundle {
-    fn default() -> Self {
+impl RipplesCameraBundle {
+    pub fn new(ripples_styles: &mut Assets<RipplesStyle>) -> Self {
         let mut camera_bundle = Camera2dBundle::default();
         camera_bundle.camera_2d = Camera2d {
             clear_color: ClearColorConfig::None, // NOTE: i think this is correct...? not sure
         };
         camera_bundle.camera = Camera {
-            // render before the "main pass" camera, after WaterSpritesCameraBundle
-            priority: -1,
+            priority: -2,
             // TODO: this currently renders to the primary window, but if i want more control,
             // it can render to an Image, if i want. I don't know, let's see
             ..Default::default()
@@ -163,8 +169,10 @@ impl Default for RipplesCameraBundle {
 
         Self {
             tag: RipplesCamera,
-            visibility: Visibility::default(),
-            computed_visibility: ComputedVisibility::default(),
+            styles_handle: ripples_styles.add(RipplesStyle::default().into()),
+            // render_layers: WaterEffectImages::rendered_texture_render_layer(),
+            // visibility: Visibility::default(),
+            // computed_visibility: ComputedVisibility::default(),
             camera_bundle,
         }
     }
@@ -188,8 +196,8 @@ impl ExtractComponent for RipplesCamera {
 pub struct WaterSpritesCameraBundle {
     tag: WaterSpritesCamera,
     render_layers: RenderLayers,
-    visibility: Visibility,
-    computed_visibility: ComputedVisibility,
+    // visibility: Visibility,
+    // computed_visibility: ComputedVisibility,
     #[bundle]
     camera_bundle: Camera2dBundle,
 }
@@ -208,17 +216,16 @@ impl WaterSpritesCameraBundle {
             clear_color: ClearColorConfig::Custom(color),
         };
         camera_bundle.camera = Camera {
-            // render before the RipplesCamera
-            priority: -2,
+            priority: -1,
             target: RenderTarget::Image(image_handle),
             ..Default::default()
         };
         camera_bundle.transform = Transform::from_translation(Vec3::ZERO);
         Self {
             tag: WaterSpritesCamera,
-            render_layers: WaterEffectImages::render_layers(),
-            visibility: Visibility::default(),
-            computed_visibility: ComputedVisibility::default(),
+            render_layers: WaterEffectImages::water_sprites_render_layer(),
+            // visibility: Visibility::default(),
+            // computed_visibility: ComputedVisibility::default(),
             camera_bundle,
         }
     }
@@ -273,7 +280,8 @@ pub struct WaterSpritesCamera;
 #[derive(Default, Bundle)]
 pub struct WaterSpritesToTextureBundle {
     tag: WaterSpritesToTexture,
-    ripples_style: Handle<RipplesStyle>,
+    // render_layers: RenderLayers,
+    // ripples_style: Handle<RipplesStyle>,
     // #[bundle]
     // sprite_bundle: SpriteBundle,
     #[bundle]
@@ -288,8 +296,8 @@ impl WaterSpritesToTextureBundle {
         materials: &mut Assets<WaterSpritesMaterial>, 
         images: &Assets<Image>, 
         water_effect_images: &WaterEffectImages,
-        camera_z: f32,
-        ripples_styles: &mut Assets<RipplesStyle>,
+        // camera_z: f32,
+        // ripples_styles: &mut Assets<RipplesStyle>,
     ) -> Self {
         let water_sprites_material = WaterSpritesMaterial::new(&water_effect_images.rendered_water_sprites);
 
@@ -300,11 +308,13 @@ impl WaterSpritesToTextureBundle {
         );
         let quad = shape::Quad::new(mesh_size.as_vec2());
 
-        let translation = Vec3::new(0., 0., -camera_z + Self::Z);
+        // let translation = Vec3::new(0., 0., -camera_z + Self::Z);
+        let translation = Vec3::new(0., 0., Self::Z);
 
         Self {
             tag: WaterSpritesToTexture,
-            ripples_style: ripples_styles.add(RipplesStyle::default().into()),
+            // render_layers: WaterEffectImages::water_sprites_render_layer(),
+            // ripples_style: ripples_styles.add(RipplesStyle::default().into()),
             material_2d_bundle: MaterialMesh2dBundle { 
                 mesh: meshes.add(Mesh::from(quad)).into(), 
                 material: materials.add(water_sprites_material), 
@@ -326,6 +336,16 @@ impl WaterSpritesToTextureBundle {
 
 #[derive(Debug, Default, Component)]
 pub struct WaterSpritesToTexture;
+
+impl ExtractComponent for WaterSpritesToTexture {
+    type Query = Read<WaterSpritesToTexture>;
+
+    type Filter = ();
+
+    fn extract_component(_: QueryItem<Self::Query>) -> Self {
+        WaterSpritesToTexture
+    }
+}
 
 
 /// WATER EFFECT
@@ -366,17 +386,3 @@ impl ExtractResource for ExtractedTime {
         }
     }
 }
-
-// TODO: probably i can remove this, and in `prepare_time` system i can query WaterEffectResources instead
-pub struct TimeBuffer {
-    pub buffer: Buffer,
-}
-
-impl TimeBuffer {
-    pub fn new(buffer: &Buffer) -> Self {
-        Self {
-            buffer: buffer.clone(),
-        }
-    }
-}
-

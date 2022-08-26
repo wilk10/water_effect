@@ -1,7 +1,7 @@
-#import outline::fullscreen
-#import outline::dimensions
+#import water_effect::fullscreen
+#import water_effect::dimensions
 
-// Bind group 0 imported from outline::dimensions
+// Bind group 0 imported from water_effect::dimensions
 
 struct JumpDist {
     dist: u32,

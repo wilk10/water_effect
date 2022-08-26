@@ -131,8 +131,10 @@ impl SpecializedRenderPipeline for RipplesPipeline {
 
 pub struct RipplesNode {
     pipeline_id: CachedRenderPipelineId,
-    camera_query: QueryState<(&'static ExtractedCamera, &'static RipplesCamera)>,
-    ripples_query: QueryState<&'static Handle<RipplesStyle>>,
+    camera_query: QueryState<(&'static ExtractedCamera, &'static Handle<RipplesStyle>), With<RipplesCamera>>,
+
+    // TODO: so i think i'm extracting this correctly, but do confirm
+    // ripples_query: QueryState<&'static Handle<RipplesStyle>>, 
 }
 
 impl RipplesNode {
@@ -154,9 +156,9 @@ impl RipplesNode {
         dbg!(&pipeline_id);
 
         let camera_query = QueryState::new(world);
-        let ripples_query = QueryState::new(world);
+        // let ripples_query = QueryState::new(world);
 
-        RipplesNode { pipeline_id, camera_query, ripples_query }
+        RipplesNode { pipeline_id, camera_query }//, ripples_query }
     }
 }
 
@@ -183,7 +185,7 @@ impl Node for RipplesNode {
 
     fn update(&mut self, world: &mut World) {
         self.camera_query.update_archetypes(world);
-        self.ripples_query.update_archetypes(world);
+        // self.ripples_query.update_archetypes(world);
     }
 
     fn run(
@@ -200,17 +202,10 @@ impl Node for RipplesNode {
 
         graph.set_output(Self::OUT_VIEW, view_ent)?;
 
-        let (extracted_camera, _ripples_camera_tag) = &self.camera_query.get_manual(world, view_ent).unwrap();
+        let (extracted_camera, styles_handle) = &self.camera_query.get_manual(world, view_ent).unwrap();
 
-        let style = match self
-            .ripples_query
-            .get_manual(world, graph.get_input_entity(Self::IN_VIEW)?) {
-                Ok(s) => s,
-                Err(_) => return Ok(()),
-            };
-
-        dbg!(&extracted_camera);
-        // dbg!(&water_camera);
+        bevy::log::info!("found extracted camera");
+        // dbg!(&extracted_camera);
 
         let windows = world.resource::<ExtractedWindows>();
         let images = world.resource::<RenderAssets<Image>>();
@@ -219,19 +214,39 @@ impl Node for RipplesNode {
             None => return Ok(()),
         };
 
-        dbg!(&target_view);
+        bevy::log::info!("found view");
+        // dbg!(&target_view);
 
         let styles = world.resource::<RenderAssets<RipplesStyle>>();
-        let style = styles.get(&style).unwrap();
+        let style = styles.get(&styles_handle).unwrap();
 
-        dbg!(&style.params);
+        bevy::log::info!("found style");
+        // dbg!(&style.params);
 
         let res = world.get_resource::<WaterEffectResources>().unwrap();
 
         let pipelines = world.get_resource::<PipelineCache>().unwrap();
+
+        let pipeline_state = pipelines.get_render_pipeline_state(self.pipeline_id);
+
+        dbg!(pipeline_state);
+
+        match pipeline_state {
+            CachedPipelineState::Err(_) | CachedPipelineState::Queued => return Ok(()),
+            CachedPipelineState::Ok(_) => (),
+        }
+
+        bevy::log::info!("pipeline state is Ok");
+
         let pipeline = match pipelines.get_render_pipeline(self.pipeline_id) {
-            Some(p) => p,
-            None => return Ok(()),
+            Some(p) => {
+                bevy::log::info!("found pipeline");
+                p
+            },
+            None => {
+                bevy::log::warn!("NOT found pipeline");
+                return Ok(())
+            },
         };
 
         let render_pass = render_context
@@ -246,7 +261,7 @@ impl Node for RipplesNode {
                         store: true,
                     },
                 })],
-                // TODO (from Bevy JFA...): support outlines being occluded by world geometry
+                // TODO(from Bevy JFA...): support outlines being occluded by world geometry
                 depth_stencil_attachment: None,
             });
 
