@@ -22,15 +22,15 @@ pub struct WaterEffectImages {
 
 impl WaterEffectImages {
     const WATER_SPRITES_RENDER_LAYER: u8 = 1;
-    // const RENDERED_TEXTURE_RENDER_LAYER: u8 = 2;
+    const RENDERED_TEXTURE_RENDER_LAYER: u8 = 2;
 
     pub fn water_sprites_render_layer() -> RenderLayers {
         RenderLayers::layer(Self::WATER_SPRITES_RENDER_LAYER)
     }
 
-    // pub fn rendered_texture_render_layer() -> RenderLayers {
-    //     RenderLayers::layer(Self::RENDERED_TEXTURE_RENDER_LAYER)
-    // }
+    pub fn rendered_texture_render_layer() -> RenderLayers {
+        RenderLayers::layer(Self::RENDERED_TEXTURE_RENDER_LAYER)
+    }
 
     fn image_size(window: &Window) -> Extent3d {
         let extra_margin = Vec2::ZERO;
@@ -146,7 +146,7 @@ pub struct MainCamera;
 pub struct RipplesCameraBundle {
     tag: RipplesCamera,
     styles_handle: Handle<RipplesStyle>,
-    // render_layers: RenderLayers,
+    render_layers: RenderLayers,
     // visibility: Visibility,
     // computed_visibility: ComputedVisibility,
     #[bundle]
@@ -160,7 +160,7 @@ impl RipplesCameraBundle {
             clear_color: ClearColorConfig::None, // NOTE: i think this is correct...? not sure
         };
         camera_bundle.camera = Camera {
-            priority: -2,
+            priority: 1,
             // TODO: this currently renders to the primary window, but if i want more control,
             // it can render to an Image, if i want. I don't know, let's see
             ..Default::default()
@@ -170,7 +170,7 @@ impl RipplesCameraBundle {
         Self {
             tag: RipplesCamera,
             styles_handle: ripples_styles.add(RipplesStyle::default().into()),
-            // render_layers: WaterEffectImages::rendered_texture_render_layer(),
+            render_layers: WaterEffectImages::rendered_texture_render_layer(),
             // visibility: Visibility::default(),
             // computed_visibility: ComputedVisibility::default(),
             camera_bundle,
@@ -280,7 +280,7 @@ pub struct WaterSpritesCamera;
 #[derive(Default, Bundle)]
 pub struct WaterSpritesToTextureBundle {
     tag: WaterSpritesToTexture,
-    // render_layers: RenderLayers,
+    render_layers: RenderLayers,
     // ripples_style: Handle<RipplesStyle>,
     // #[bundle]
     // sprite_bundle: SpriteBundle,
@@ -313,7 +313,7 @@ impl WaterSpritesToTextureBundle {
 
         Self {
             tag: WaterSpritesToTexture,
-            // render_layers: WaterEffectImages::water_sprites_render_layer(),
+            render_layers: WaterEffectImages::rendered_texture_render_layer(),
             // ripples_style: ripples_styles.add(RipplesStyle::default().into()),
             material_2d_bundle: MaterialMesh2dBundle { 
                 mesh: meshes.add(Mesh::from(quad)).into(), 

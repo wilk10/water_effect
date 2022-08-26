@@ -10,7 +10,9 @@ use bevy::{
         texture::BevyDefault,
     },
 };
+use bevy::render::camera::ExtractedCamera;
 
+use crate::RipplesCamera;
 use crate::{
     jfa::JfaNode, jfa_init::JfaInitNode, mask::WaterMaskNode, ripples::RipplesNode,
 };
@@ -30,25 +32,45 @@ pub(crate) mod water_effect {
     }
 }
 
-pub struct WaterEffectDriverNode;
+pub struct WaterEffectDriverNode {
+    camera_query: QueryState<&'static ExtractedCamera, With<RipplesCamera>>,
+}
 
 impl WaterEffectDriverNode {
     pub const NAME: &'static str = "water_effect_driver";
     pub const INPUT_VIEW: &'static str = "view_entity";
+
+    pub fn new(world: &mut World) -> Self {
+        Self {
+            camera_query: QueryState::new(world),
+        }
+    }
 }
 
 impl Node for WaterEffectDriverNode {
+    fn update(&mut self, world: &mut World) {
+        self.camera_query.update_archetypes(world);
+    }
+
     fn run(
         &self,
         graph: &mut RenderGraphContext,
         _render_context: &mut RenderContext,
-        _world: &World,
+        world: &World,
     ) -> Result<(), NodeRunError> {
         let view_entity = graph.get_input_entity(Self::INPUT_VIEW)?;
 
         dbg!(view_entity);
 
-        graph.run_sub_graph(water_effect::NAME, vec![view_entity.into()])?;
+        match self.camera_query.get_manual(world, view_entity) {
+            Ok(_) => {
+                bevy::log::info!("do run subgraph");
+                graph.run_sub_graph(water_effect::NAME, vec![view_entity.into()])?;
+            },
+            Err(_) => {
+                bevy::log::info!("do not run subgraph");
+            }
+        }
 
         Ok(())
     }

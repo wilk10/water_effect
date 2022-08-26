@@ -69,10 +69,13 @@ impl Plugin for WaterEffectPlugin {
             .add_asset::<RipplesStyle>()
             .init_resource::<WaterEffectImages>();
 
+    
         let render_app = match app.get_sub_app_mut(RenderApp) {
             Ok(r) => r,
             Err(_) => return,
         };
+
+        let water_effect_driver_node = graph::WaterEffectDriverNode::new(&mut render_app.world);
 
         render_app
             .init_resource::<DrawFunctions<WaterMask>>()
@@ -99,7 +102,7 @@ impl Plugin for WaterEffectPlugin {
 
         draw_2d_graph.add_sub_graph(graph::water_effect::NAME, water_effect_subgraph);
         let water_effect_driver =
-            draw_2d_graph.add_node(graph::WaterEffectDriverNode::NAME, graph::WaterEffectDriverNode);
+            draw_2d_graph.add_node(graph::WaterEffectDriverNode::NAME, water_effect_driver_node);
         draw_2d_graph
             .add_slot_edge(
                 draw_2d_input,
@@ -182,12 +185,7 @@ fn queue_water_mask(
         dbg!(&view.width);
         dbg!(&view.height);
 
-        // TODO: i solved the issue with seeing other cameras, it was because i added Visibility and Computed Visibility
-        // to be able to parent them to each other, but that screwed up the rest massively.
-        //
-        // here though i'd like to not see the other sprites, cause i'll have thousands in the game, but only see
-        // the one with WaterSpritesToTexture. RenderLayers didn't fix it, but it might be because i'm extracting
-        // the style manually maybe??
+        // NOTE: ok, with render layers this works, it only sees the one texture it's supposed to see
         dbg!(&visible_entities);
 
         // let view_matrix = view.transform.compute_matrix();
@@ -229,127 +227,3 @@ fn queue_water_mask(
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// pub fn extract_water_effect_mesh2d(
-//     mut commands: Commands,
-//     mut previous_len: Local<usize>,
-//     query: Extract<Query<(Entity, &ComputedVisibility), With<WaterEffect>>>,
-// ) {
-//     let mut values = Vec::with_capacity(*previous_len);
-//     for (entity, _computed_visibility) in query.iter() {
-//         // if !computed_visibility.is_visible() {
-//         //     continue;
-//         // }
-//         values.push((entity, (WaterEffect,)));
-//     }
-
-//     dbg!(&values);
-
-//     *previous_len = values.len();
-//     commands.insert_or_spawn_batch(values);
-// }
-
-// fn queue_water_effect_mesh(
-//     transparent_2d_draw_functions: Res<DrawFunctions<Transparent2d>>,
-//     water_effect_pipeline: Res<WaterEffectPipeline>,
-//     msaa: Res<Msaa>,
-//     mut pipelines: ResMut<SpecializedMeshPipelines<WaterEffectPipeline>>,
-//     mut pipeline_cache: ResMut<PipelineCache>,
-//     render_meshes: Res<RenderAssets<Mesh>>,
-//     water_effect_mesh2d: Query<(&Mesh2dHandle, &Mesh2dUniform), With<WaterEffect>>,
-//     mut views: Query<(&ExtractedView, &VisibleEntities, &mut RenderPhase<Transparent2d>)>,
-// ) {
-//     if water_effect_mesh2d.is_empty() {
-//         warn!("water_effect_mesh2d is empty");
-//         return;
-//     }
-
-//     dbg!(water_effect_mesh2d.iter().count());
-
-//     // Iterate each view (a camera is a view)
-//     for (_view, visible_entities, mut transparent_phase) in &mut views {
-
-//         // dbg!(&view.width);
-//         // dbg!(&view.height);
-//         // dbg!(&visible_entities);
-
-//         let draw_water_effect = transparent_2d_draw_functions
-//             .read()
-//             .get_id::<DrawWaterEffect>()
-//             .unwrap();
-
-//         // dbg!(&draw_water_effect);
-
-//         // let mesh_key = Mesh2dPipelineKey::from_msaa_samples(msaa.samples);
-
-//         // Queue all entities visible to that view
-//         for visible_entity in &visible_entities.entities {
-
-//             if let Ok((mesh2d_handle, mesh2d_uniform)) = water_effect_mesh2d.get(*visible_entity) {
-//                 dbg!(&visible_entity);
-//                 dbg!(&mesh2d_handle.0);
-
-//                 let mesh2d_key = match render_meshes.get(&mesh2d_handle.0) {
-//                     Some(mesh) =>{
-//                         // dbg!("mesh found");
-//                         Mesh2dPipelineKey::from_primitive_topology(mesh.primitive_topology)
-//                     },
-//                     None =>  {
-//                         // dbg!("mesh not found");
-//                         Mesh2dPipelineKey::from_msaa_samples(msaa.samples)
-//                     },
-//                 };
-
-//                 // dbg!(&mesh2d_key);
-
-//                 let mesh2d_layout = match render_meshes.get(&mesh2d_handle.0) {
-//                     Some(mesh) => &mesh.layout,
-//                     None => {
-//                         warn!("no mesh found with handle {:?}", &mesh2d_handle.0);
-//                         continue
-//                     },
-//                 };
-
-//                 // dbg!(&mesh2d_layout);
-
-//                 let pipeline_id =
-//                     pipelines.specialize(&mut pipeline_cache, &water_effect_pipeline, mesh2d_key, mesh2d_layout)
-//                     .unwrap();
-
-//                 dbg!(pipeline_id);
-
-//                 // let pipeline = pipeline_cache.get_render_pipeline(pipeline_id).unwrap();
-
-//                 // dbg!(pipeline);
-
-//                 let mesh_z = mesh2d_uniform.transform.w_axis.z;
-
-//                 dbg!(&mesh_z);
-
-//                 transparent_phase.add(Transparent2d {
-//                     entity: *visible_entity,
-//                     draw_function: draw_water_effect,
-//                     pipeline: pipeline_id,
-//                     // The 2d render items are sorted according to their z value before rendering,
-//                     // in order to get correct transparency
-//                     sort_key: FloatOrd(mesh_z),
-//                     // This material is not batched
-//                     batch_range: None,
-//                 });
-//             }
-//         }
-//     }
-// }
