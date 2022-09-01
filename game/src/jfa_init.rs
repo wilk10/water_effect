@@ -3,12 +3,7 @@ use bevy::{
     render::{
         render_graph::{Node, NodeRunError, RenderGraphContext, SlotInfo, SlotType},
         render_phase::TrackedRenderPass,
-        render_resource::{
-            CachedRenderPipelineId, ColorTargetState, ColorWrites, Face, FragmentState, FrontFace,
-            LoadOp, MultisampleState, Operations, PipelineCache, PolygonMode, PrimitiveState,
-            PrimitiveTopology, RenderPassColorAttachment, RenderPassDescriptor,
-            RenderPipelineDescriptor, VertexState,
-        },
+        render_resource::*,
         renderer::RenderContext,
     },
 };
@@ -114,6 +109,20 @@ impl Node for JfaInitNode {
 
         let pipeline = world.get_resource::<JfaInitPipeline>().unwrap();
         let pipeline_cache = world.get_resource::<PipelineCache>().unwrap();
+
+        let pipelines = world.get_resource::<PipelineCache>().unwrap();
+        let pipeline_state = pipelines.get_render_pipeline_state(pipeline.cached);
+
+        match pipeline_state {
+            CachedPipelineState::Ok(_) => {
+                bevy::log::info!("jfa init pipeline state is Ok");
+            }
+            _ => {
+                bevy::log::warn!("jfa init pipeline state is not Ok");
+                dbg!(&pipeline_state);
+            },
+        }
+
         let cached_pipeline = match pipeline_cache.get_render_pipeline(pipeline.cached) {
             Some(c) => c,
             // Still queued.
@@ -145,7 +154,7 @@ impl Node for JfaInitNode {
                 depth_stencil_attachment: None,
             });
 
-        dbg!(&render_pass);
+        // dbg!(&render_pass);
 
         let mut tracked_pass = TrackedRenderPass::new(render_pass);
         tracked_pass.set_render_pipeline(cached_pipeline);

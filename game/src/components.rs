@@ -177,7 +177,7 @@ impl RipplesCameraBundle {
             clear_color: ClearColorConfig::Custom(color),
         };
         camera_bundle.camera = Camera {
-            priority: -1,
+            priority: 1,
             target: RenderTarget::Image(image_handle),
             ..Default::default()
         };
@@ -232,7 +232,7 @@ impl WaterSpritesCameraBundle {
             clear_color: ClearColorConfig::Custom(color),
         };
         camera_bundle.camera = Camera {
-            priority: -2,
+            priority: -1,
             target: RenderTarget::Image(image_handle),
             ..Default::default()
         };

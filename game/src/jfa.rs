@@ -4,11 +4,7 @@ use bevy::{
         render_asset::RenderAssets,
         render_graph::{Node, NodeRunError, RenderGraphContext, SlotInfo, SlotType},
         render_phase::TrackedRenderPass,
-        render_resource::{
-            BindGroup, CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState,
-            LoadOp, MultisampleState, Operations, PipelineCache, RenderPassColorAttachment,
-            RenderPassDescriptor, RenderPipelineDescriptor, ShaderType, TextureView, VertexState,
-        },
+        render_resource::*,
         renderer::RenderContext,
     },
 };
@@ -155,6 +151,19 @@ impl Node for JfaNode {
 
         let pipeline = world.get_resource::<JfaPipeline>().unwrap();
         let pipeline_cache = world.get_resource::<PipelineCache>().unwrap();
+
+        let pipeline_state = pipeline_cache.get_render_pipeline_state(pipeline.cached);
+        
+        match pipeline_state {
+            CachedPipelineState::Ok(_) => {
+                bevy::log::info!("jfa pipeline state is Ok");
+            }
+            _ => {
+                bevy::log::warn!("jfa pipeline state is not Ok");
+                dbg!(&pipeline_state);
+            },
+        }
+
         let cached_pipeline = match pipeline_cache.get_render_pipeline(pipeline.cached) {
             Some(c) => c,
             // Still queued.
@@ -171,10 +180,14 @@ impl Node for JfaNode {
         // max_exp > log2(weight + 1) - 1
 
         let max_exp = width.log2() as usize;
+
+        dbg!(max_exp);
+
         //let max_exp = width.log2().ceil() as usize;
         for it in 0..=max_exp {
             let exp = max_exp - it;
 
+            dbg!(it);
             dbg!(&exp);
 
             let target: &TextureView;
@@ -195,6 +208,8 @@ impl Node for JfaNode {
                 }
                 src = &res.jfa_from_primary_bind_group;
             }
+
+            // dbg!(src);
 
             let attachment = RenderPassColorAttachment {
                 view: target,
@@ -222,7 +237,7 @@ impl Node for JfaNode {
                         depth_stencil_attachment: None,
                     });
 
-            dbg!(&render_pass);
+            // dbg!(&render_pass);
             dbg!(&res.jfa_distance_offsets[exp]);
 
             let mut tracked_pass = TrackedRenderPass::new(render_pass);

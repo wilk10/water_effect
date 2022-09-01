@@ -90,20 +90,21 @@ impl<const I: usize> EntityRenderCommand for SetWaterTextureViewBindGroup<I> {
         (materials, query): SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-        let material2d_handle = query.get(item).unwrap();
+        let material_2d = query.get(item).map(|material2d_handle| materials.into_inner().get(material2d_handle));
+        let result = match material_2d {
+            Ok(Some(material)) => {
+                pass.set_bind_group(I, &material.bind_group, &[]);
+                RenderCommandResult::Success
+            },
+            _ => RenderCommandResult::Failure
+        };
 
-        println!("============!!!!!!!!!!!!!!==========!!!!!!=========!!!!!!!=====!!!");
-        dbg!(&material2d_handle);
+        match result {
+            RenderCommandResult::Success => bevy::log::info!("render commands successful"),
+            RenderCommandResult::Failure => bevy::log::warn!("render command failed"),
+        }
 
-        let material2d = materials.into_inner().get(material2d_handle).unwrap();
-
-        dbg!(&material2d.bind_group);
-
-        pass.set_bind_group(I, &material2d.bind_group, &[]);
-
-        println!("============!!!!!!!!!!!!!!==========!!!!!!=========!!!!!!!=====!!!");
-
-        RenderCommandResult::Success
+        result
     }
 }
 

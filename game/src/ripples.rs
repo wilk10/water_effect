@@ -15,7 +15,7 @@ use crate::{components::RipplesCamera};
 use crate::ripples_style::RipplesStyle;
 use crate::{
     resources::{self, WaterEffectResources},
-    //FULLSCREEN_PRIMITIVE_STATE,
+    FULLSCREEN_PRIMITIVE_STATE,
 };
 
 #[derive(Clone, Debug)]
@@ -118,7 +118,7 @@ impl SpecializedRenderPipeline for RipplesPipeline {
                     write_mask: ColorWrites::ALL,
                 })],
             }),
-            primitive: PrimitiveState::default(),// FULLSCREEN_PRIMITIVE_STATE, // TODO: removed for debugging
+            primitive: FULLSCREEN_PRIMITIVE_STATE,
             depth_stencil: None,
             multisample: MultisampleState {
                 count: 1,
@@ -132,9 +132,6 @@ impl SpecializedRenderPipeline for RipplesPipeline {
 pub struct RipplesNode {
     pipeline_id: CachedRenderPipelineId,
     camera_query: QueryState<(&'static ExtractedCamera, &'static Handle<RipplesStyle>), With<RipplesCamera>>,
-
-    // TODO: so i think i'm extracting this correctly, but do confirm
-    // ripples_query: QueryState<&'static Handle<RipplesStyle>>, 
 }
 
 impl RipplesNode {
@@ -226,10 +223,8 @@ impl Node for RipplesNode {
         let res = world.get_resource::<WaterEffectResources>().unwrap();
 
         let pipelines = world.get_resource::<PipelineCache>().unwrap();
-
         let pipeline_state = pipelines.get_render_pipeline_state(self.pipeline_id);
-
-        dbg!(pipeline_state);
+        // dbg!(pipeline_state);
 
         match pipeline_state {
             CachedPipelineState::Err(_) | CachedPipelineState::Queued => return Ok(()),
@@ -265,7 +260,7 @@ impl Node for RipplesNode {
                 depth_stencil_attachment: None,
             });
 
-        dbg!(&render_pass);
+        // dbg!(&render_pass);
 
         let mut tracked_pass = TrackedRenderPass::new(render_pass);
         tracked_pass.set_render_pipeline(pipeline);

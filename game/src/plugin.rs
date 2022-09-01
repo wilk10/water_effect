@@ -132,7 +132,7 @@ fn extract_ripples_styles(
     );
     *previous_ripples_styles_len = batches.len();
 
-    dbg!(&batches);
+    //dbg!(&batches);
 
     commands.insert_or_spawn_batch(batches);
 }
@@ -185,11 +185,11 @@ fn queue_water_mask(
 
         // TODO: these were 1600 and 900 and they were a bit weird honestly, why?
         // TODO: now they are 1280, 720, which i think make more sense?
-        dbg!(&view.width);
-        dbg!(&view.height);
+        // dbg!(&view.width);
+        // dbg!(&view.height);
 
         // NOTE: ok, with render layers this works, it only sees the one texture it's supposed to see
-        dbg!(&visible_entities);
+        //dbg!(&visible_entities);
 
         // let view_matrix = view.transform.compute_matrix();
         // let inv_view_row_2 = view_matrix.inverse().row(2);
@@ -202,7 +202,7 @@ fn queue_water_mask(
             };
 
             dbg!(&visible_entity);
-            dbg!(&mesh2d_handle);
+            //dbg!(&mesh2d_handle);
 
             let mesh = match render_meshes.get(&mesh2d_handle.0) {
                 Some(m) => m,
@@ -211,7 +211,7 @@ fn queue_water_mask(
 
             let key = Mesh2dPipelineKey::from_primitive_topology(mesh.primitive_topology);
 
-            dbg!(&key);
+            // dbg!(&key);
 
             let pipeline = pipelines
                 .specialize(&mut pipeline_cache, &mesh_mask_pipeline, key, &mesh.layout)
@@ -219,14 +219,28 @@ fn queue_water_mask(
 
             let mesh_z = mesh2d_uniform.transform.w_axis.z;
 
-            dbg!(&mesh_z);
+            //dbg!(&mesh_z);
 
-            mesh_mask_phase.add(WaterMask {
-                entity,
-                pipeline,
-                draw_function: draw_water_mask,
-                distance: mesh_z,
-            });
+            let pipeline_state = pipeline_cache.get_render_pipeline_state(pipeline);
+            //dbg!(&pipeline_state);
+
+            match pipeline_state {
+                CachedPipelineState::Ok(_) => {
+
+                    bevy::log::info!("water mask pipeline state is Ok");
+
+                    mesh_mask_phase.add(WaterMask {
+                        entity,
+                        pipeline,
+                        draw_function: draw_water_mask,
+                        distance: mesh_z,
+                    });
+                }
+                _ => {
+                    bevy::log::warn!("water mask pipeline state is not Ok");
+                    dbg!(&pipeline_state);
+                },
+            }
         }
     }
 }
