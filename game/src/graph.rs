@@ -21,7 +21,7 @@ pub(crate) mod water_effect {
     pub const NAME: &str = "water_effect_graph";
 
     pub mod input {
-        pub const VIEW_ENTITY: &str = "view_entity"; // entity in view, i think
+        pub const VIEW_ENTITY: &str = "view_entity";
     }
 
     pub mod node {
@@ -101,16 +101,16 @@ pub fn water_effect(render_app: &mut App) -> Result<RenderGraph, RenderGraphErro
     // 4. Ripples
 
     let mask_node = WaterMaskNode::new(&mut render_app.world);
-    // let jfa_init_node = JfaInitNode;
-    // let jfa_node = JfaNode::from_world(&mut render_app.world);
+    let jfa_init_node = JfaInitNode;
+    let jfa_node = JfaNode::from_world(&mut render_app.world);
     // TODO: BevyDefault for surface texture format is an anti-pattern;
     // the target texture format should be queried from the window when
     // Bevy exposes that functionality.
     let ripples_node = RipplesNode::new(&mut render_app.world, TextureFormat::bevy_default());
 
     graph.add_node(water_effect::node::MASK_PASS, mask_node);
-    // graph.add_node(water_effect::node::JFA_INIT_PASS, jfa_init_node);
-    // graph.add_node(water_effect::node::JFA_PASS, jfa_node);
+    graph.add_node(water_effect::node::JFA_INIT_PASS, jfa_init_node);
+    graph.add_node(water_effect::node::JFA_PASS, jfa_node);
     graph.add_node(water_effect::node::RIPPLES_PASS, ripples_node);
 
     // Input -> Mask
@@ -121,31 +121,29 @@ pub fn water_effect(render_app: &mut App) -> Result<RenderGraph, RenderGraphErro
         WaterMaskNode::IN_VIEW,
     )?;
 
-    // TODO: removed only for debugging
-    //
-    // // Mask -> JFA Init
-    // graph.add_slot_edge(
-    //     water_effect::node::MASK_PASS,
-    //     WaterMaskNode::OUT_MASK,
-    //     water_effect::node::JFA_INIT_PASS,
-    //     JfaInitNode::IN_MASK,
-    // )?;
+    // Mask -> JFA Init
+    graph.add_slot_edge(
+        water_effect::node::MASK_PASS,
+        WaterMaskNode::OUT_MASK,
+        water_effect::node::JFA_INIT_PASS,
+        JfaInitNode::IN_MASK,
+    )?;
 
-    // // Input -> JFA
-    // graph.add_slot_edge(
-    //     input_node_id,
-    //     water_effect::input::VIEW_ENTITY,
-    //     water_effect::node::JFA_PASS,
-    //     JfaNode::IN_VIEW,
-    // )?;
+    // Input -> JFA
+    graph.add_slot_edge(
+        input_node_id,
+        water_effect::input::VIEW_ENTITY,
+        water_effect::node::JFA_PASS,
+        JfaNode::IN_VIEW,
+    )?;
 
-    // // JFA Init -> JFA
-    // graph.add_slot_edge(
-    //     water_effect::node::JFA_INIT_PASS,
-    //     JfaInitNode::OUT_JFA_INIT,
-    //     water_effect::node::JFA_PASS,
-    //     JfaNode::IN_BASE,
-    // )?;
+    // JFA Init -> JFA
+    graph.add_slot_edge(
+        water_effect::node::JFA_INIT_PASS,
+        JfaInitNode::OUT_JFA_INIT,
+        water_effect::node::JFA_PASS,
+        JfaNode::IN_BASE,
+    )?;
 
     // Input -> Ripples
     graph.add_slot_edge(
@@ -155,25 +153,23 @@ pub fn water_effect(render_app: &mut App) -> Result<RenderGraph, RenderGraphErro
         RipplesNode::IN_VIEW,
     )?;
 
-    // TODO: removed only for debugging
-    //
-    // // JFA -> Ripples
-    // graph.add_slot_edge(
-    //     water_effect::node::JFA_PASS,
-    //     JfaNode::OUT_JUMP,
-    //     water_effect::node::RIPPLES_PASS,
-    //     RipplesNode::IN_JFA,
-    // )?;
-
-    // TODO: added only for debugging
-    //
-    // Mask -> Ripples
+    // JFA -> Ripples
     graph.add_slot_edge(
-        water_effect::node::MASK_PASS,
-        WaterMaskNode::OUT_MASK,
+        water_effect::node::JFA_PASS,
+        JfaNode::OUT_JUMP,
         water_effect::node::RIPPLES_PASS,
-        RipplesNode::IN_JFA, // actually IN_MASK, but ok
+        RipplesNode::IN_JFA,
     )?;
+
+    // // TODO: added only for debugging
+    // //
+    // // Mask -> Ripples
+    // graph.add_slot_edge(
+    //     water_effect::node::MASK_PASS,
+    //     WaterMaskNode::OUT_MASK,
+    //     water_effect::node::RIPPLES_PASS,
+    //     RipplesNode::IN_JFA, // actually IN_MASK, but ok
+    // )?;
 
     dbg!(&graph);
 

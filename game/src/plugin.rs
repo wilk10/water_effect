@@ -183,7 +183,8 @@ fn queue_water_mask(
 
     for (view, visible_entities, mut mesh_mask_phase) in views.iter_mut() {
 
-        // TODO: this is 1600 and 900 and they are a bit weird honestly, why?
+        // TODO: these were 1600 and 900 and they were a bit weird honestly, why?
+        // TODO: now they are 1280, 720, which i think make more sense?
         dbg!(&view.width);
         dbg!(&view.height);
 

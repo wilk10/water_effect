@@ -34,6 +34,6 @@ fn fragment(
     //     input_colour = vec4<f32>(1., 1., 1., 1.);
     // }
 
-    var result: vec4<f32> = vec4<f32>(input_colour.r, 0., input_colour.b, input_colour.a);;
+    var result: vec4<f32> = vec4<f32>(input_colour.r, 0., input_colour.b, 1.);;
     return result;
 }

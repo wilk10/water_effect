@@ -20,19 +20,19 @@ use crate::plugin::WaterEffectPlugin;
 // TODO: most likely i can just move it inside WaterEffectResources
 
 // TODO: still don't understand this
-// const JFA_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rg16Snorm;
+const JFA_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rg16Snorm;
 // // TODO: still don't understand this
-// const FULLSCREEN_PRIMITIVE_STATE: PrimitiveState = PrimitiveState {
-//     topology: PrimitiveTopology::TriangleList,
-//     strip_index_format: None,
-//     front_face: FrontFace::Ccw,
-//     cull_mode: Some(Face::Back),
-//     unclipped_depth: false,
-//     polygon_mode: PolygonMode::Fill,
-//     conservative: false,
-// };
+const FULLSCREEN_PRIMITIVE_STATE: PrimitiveState = PrimitiveState {
+    topology: PrimitiveTopology::TriangleList,
+    strip_index_format: None,
+    front_face: FrontFace::Ccw,
+    cull_mode: Some(Face::Back),
+    unclipped_depth: false,
+    polygon_mode: PolygonMode::Fill,
+    conservative: false,
+};
 
-const JFA_TEXTURE_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
+// const JFA_TEXTURE_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
 
 pub struct GamePlugin;
 
@@ -41,7 +41,7 @@ impl Plugin for GamePlugin {
         app.add_plugin(WaterEffectPlugin)
         .add_startup_system(setup)
         .add_system(rotate_sprites)
-        // .add_system(lets_panic)
+        .add_system(lets_panic)
         ;
     }
 }
@@ -183,8 +183,8 @@ fn rotate_sprites(time: Res<Time>, mut query: Query<(&mut Transform, &RotationSp
     }
 }
 
-// fn lets_panic(time: Res<Time>) {
-//     if time.seconds_since_startup() > 0.2 {
-//         panic!("lets panic");
-//     }
-// }
+fn lets_panic(time: Res<Time>) {
+    if time.seconds_since_startup() > 1. {
+        panic!("lets panic");
+    }
+}

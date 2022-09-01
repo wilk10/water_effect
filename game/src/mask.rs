@@ -58,6 +58,7 @@ impl PhaseItem for WaterMask {
 
 impl EntityPhaseItem for WaterMask {
     fn entity(&self) -> Entity {
+        // TODO: this is called twice, why?
         dbg!(&self.entity);
         self.entity
     }
@@ -96,7 +97,7 @@ impl<const I: usize> EntityRenderCommand for SetWaterTextureViewBindGroup<I> {
 
         let material2d = materials.into_inner().get(material2d_handle).unwrap();
 
-        dbg!(&material2d.key);
+        dbg!(&material2d.bind_group);
 
         pass.set_bind_group(I, &material2d.bind_group, &[]);
 
@@ -138,6 +139,9 @@ impl SpecializedMeshPipeline for WaterMaskPipeline {
         key: Self::Key,
         layout: &Hashed<InnerMeshVertexBufferLayout, FixedState>,
     ) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
+
+        dbg!(&key);
+
         let blend = BlendState {
             color: BlendComponent {
                 src_factor: BlendFactor::SrcAlpha,
@@ -165,20 +169,20 @@ impl SpecializedMeshPipeline for WaterMaskPipeline {
             shader: self.shader.clone(),
             shader_defs: vec![],
             entry_point: "fragment".into(),
-            // TODO: removed for debugging
-            //
-            // targets: vec![Some(ColorTargetState {
-            //     format: TextureFormat::R8Unorm,
-            //     blend: None,
-            //     write_mask: ColorWrites::ALL,
-            // })],
+            // TODO: might want to remove for debugging
             
-            // TODO: added for debugging
             targets: vec![Some(ColorTargetState {
-                format: TextureFormat::bevy_default(),
-                blend: Some(blend),
+                format: TextureFormat::R8Unorm,
+                blend: None,
                 write_mask: ColorWrites::ALL,
             })],
+            
+            // // TODO: added for debugging
+            // targets: vec![Some(ColorTargetState {
+            //     format: TextureFormat::bevy_default(),
+            //     blend: Some(blend),
+            //     write_mask: ColorWrites::ALL,
+            // })],
         });
         desc.depth_stencil = None;
 
@@ -258,9 +262,9 @@ impl Node for WaterMaskNode {
                 label: Some("water_effect_stencil_render_pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &res.mask_multisample.default_view,
-                    resolve_target: None,// Some(&res.mask_output.default_view), // TODO: removed for debugging, probably this is the one giving the error right now
+                    resolve_target: Some(&res.mask_output.default_view), // TODO: might want to remove for debugging
                     ops: Operations {
-                        load: LoadOp::Load,
+                        load: LoadOp::Clear(Color::BLACK.into()),
                         store: true,
                     },
                 })],

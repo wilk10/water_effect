@@ -169,9 +169,12 @@ impl RipplesCameraBundle {
     pub fn new(ripples_styles: &mut Assets<RipplesStyle>, water_effect_images: &WaterEffectImages) -> Self {
         let image_handle = water_effect_images.rendered_ripples.clone();
 
+        let color = Color::PINK;
+
         let mut camera_bundle = Camera2dBundle::default();
         camera_bundle.camera_2d = Camera2d {
-            clear_color: ClearColorConfig::None,
+            //clear_color: ClearColorConfig::None,
+            clear_color: ClearColorConfig::Custom(color),
         };
         camera_bundle.camera = Camera {
             priority: -1,
